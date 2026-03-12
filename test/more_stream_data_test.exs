@@ -43,4 +43,38 @@ defmodule MoreStreamDataTest do
       end
     end
   end
+
+  describe "time/1" do
+    property "generates free values when min and max are not specified" do
+      check all time <- time() do
+        assert %Time{} = time
+      end
+    end
+
+    property "does not generate values greater than max" do
+      max = Time.utc_now()
+
+      check all time <- time(max: max) do
+        assert Time.after?(max, time)
+      end
+    end
+
+    property "does not generate values below min" do
+      min = Time.utc_now()
+
+      check all time <- time(min: min) do
+        assert Time.after?(time, min)
+      end
+    end
+
+    property "generates values between min and max when both are specified" do
+      min = ~T[01:02:03.4567]
+      max = ~T[09:08:07.6543]
+
+      check all time <- time(min: min, max: max) do
+        assert Time.after?(max, time)
+        assert Time.after?(time, min)
+      end
+    end
+  end
 end

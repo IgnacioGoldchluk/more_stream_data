@@ -12,7 +12,7 @@ defmodule MoreStreamData do
 
     - `:version`. Either `4` or `6`. If unspecified it generates both values.
     - `:network`. A string representing an IPv4 network or an IPv6 network, such
-    as "123.111.0.0/16" or "1234:3210::/16. If specified, only IPs in the given
+    as `"123.111.0.0/16"` or `"1234:3210::/16`. If specified, only IPs in the given
     range are generated.
 
     In case both `:version` and `:network` are specified, the version must match the network
@@ -118,4 +118,31 @@ defmodule MoreStreamData do
   end
 
   defp ip_to_string(ip) when is_tuple(ip), do: ip |> :inet.ntoa() |> to_string()
+
+  @doc """
+  Generates `Time.t/0` structures according to the given `options` or `time_range`.
+
+  Shrinks towards `~T[00:00:00]` the specified `:min`.
+
+  ## Options
+
+    - `:min` - (`Time.t/0`) the minimum time to generate
+    - `:max` - (`Time.t/0`) the maximum time to generate
+  """
+  @spec time(Keyword.t()) :: StreamData.t(Time.t())
+  def time(opts \\ []) do
+    min = Keyword.get_lazy(opts, :min, &min_time/0)
+    max = Keyword.get_lazy(opts, :max, &max_time/0)
+
+    if Time.after?(min, max) do
+      raise ArgumentError, "min time > max time: #{min} > #{max}"
+    end
+
+    0..Time.diff(max, min, :microsecond)
+    |> StreamData.integer()
+    |> StreamData.map(&Time.add(min, &1, :microsecond))
+  end
+
+  defp max_time, do: Time.new!(23, 59, 59, 999_999)
+  defp min_time, do: Time.new!(0, 0, 0, 0)
 end
