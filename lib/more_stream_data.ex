@@ -130,26 +130,27 @@ defmodule MoreStreamData do
   defp min_time, do: Time.new!(0, 0, 0, 0)
 
   @doc """
-  Same as `StreamData.integer/1` but also accepts a single end
+  Same as `StreamData.integer/1` but also accepts a single end.
 
   ## Options
 
     - `:min` - (`integer()`) the minimum inclusive value
     - `:max` - (`integer()`) the maximum inclusive value
   """
-  def integer(%Range{} = range), do: StreamData.integer(range)
+  @spec more_integer(Keyword.t() | Range.t()) :: StreamData.t(integer())
+  def more_integer(%Range{} = range), do: StreamData.integer(range)
 
-  def integer(opts) when is_list(opts) do
+  def more_integer(opts) when is_list(opts) do
     case {opts[:min], opts[:max]} do
       {nil, nil} -> StreamData.integer()
       {nil, max} -> StreamData.non_negative_integer() |> StreamData.map(&(max + &1 * -1))
       {min, nil} -> StreamData.non_negative_integer() |> StreamData.map(&(&1 + min))
-      {min, max} when min <= max -> integer(min..max)
+      {min, max} when min <= max -> more_integer(min..max)
       {min, max} -> raise ArgumentError, "invalid range: min #{min}, max #{max}"
     end
   end
 
-  def integer, do: integer(Keyword.new())
+  def more_integer, do: more_integer(Keyword.new())
 
   @doc """
   Same as `StreamData.float/1` but also accepts exclusion options
@@ -161,7 +162,8 @@ defmodule MoreStreamData do
     - `:exclude_max?` - (`boolean()`) whether to exclude the max value if set.
     Defaults to `false`
   """
-  def float(opts \\ []) do
+  @spec more_float(Keyword.t()) :: StreamData.t(float())
+  def more_float(opts \\ []) do
     opts = Keyword.merge([exclude_min?: false, exclude_max?: false], opts)
     opts |> StreamData.float() |> maybe_exclude_min(opts) |> maybe_exclude_max(opts)
   end
@@ -192,11 +194,13 @@ defmodule MoreStreamData do
     - `:min` - (`Decimal.t/0`) the minimum value to generate
     - `:max` - (`Decimal.t/0`) the maximum value to generate
     - `:precision` - (`pos_integer()`) number of decimal places to consider
-    - `:allow_nan?` - (`boolean()`) whether to allow NaN. Defaults to `true` unless both `:min`
-    and `:max` are set.
-    - `:allow_infinity?` - (`boolean()`) whether to allow `±Infinity` defaults to `true`
-    unless excluded by `:min` and `:max` values.
+    - `:allow_nan?` - (`boolean() | nil()`) whether to allow `"NaN"`. If unspecified,
+    `"NaN"` is allowed unless both `min` and `max` are specified.
+    - `:allow_infinity?` - (`boolean() | nil()`) whether to allow `"±Infinity"`. If unspecified,
+    `"±Infinity"` is allowed based on `min` and `max`. If set to `true`, `"±Infinity"` is
+    generated even if `:min` and `:max` are specified.
   """
+  @spec decimal(Keyword.t()) :: StreamData.t(Decimal.t())
   def decimal(opts \\ []) do
     [{15, decimal_gen(opts)}] |> add_nan(opts) |> add_infinity(opts) |> StreamData.frequency()
   end
@@ -260,7 +264,7 @@ defmodule MoreStreamData do
 
         %Decimal{coef: max_coef, exp: max_exp} = Decimal.sub(max, min)
 
-        StreamData.tuple({StreamData.integer(0..max_coef), integer(max: max_exp)})
+        StreamData.tuple({StreamData.integer(0..max_coef), more_integer(max: max_exp)})
         |> StreamData.map(fn {coef, exp} ->
           Decimal.Context.with(ctx, fn -> Decimal.add(min, Decimal.new(1, coef, exp)) end)
         end)
@@ -274,6 +278,7 @@ defmodule MoreStreamData do
   @doc """
   Returns an [IANA Timezone](https://www.iana.org/time-zones)
   """
+  @spec timezone :: StreamData.t(Calendar.time_zone())
   def timezone do
     StreamData.member_of(Tzdata.zone_list())
   end

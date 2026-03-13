@@ -4,7 +4,7 @@ defmodule MoreStreamDataTest do
 
   require Decimal
 
-  import MoreStreamData, except: [integer: 1, float: 1]
+  import MoreStreamData
 
   describe "ip_address/1" do
     test "mismatched version and network range raises" do
@@ -145,82 +145,82 @@ defmodule MoreStreamDataTest do
     end
 
     test "eventually draws 'NaN' when allow_nan?: true" do
-      Enum.take_while(MoreStreamData.decimal(allow_nan?: true), &Decimal.nan?/1)
+      Enum.take_while(decimal(allow_nan?: true), &Decimal.nan?/1)
     end
 
     test "eventually draws Infinity when allow_infinity?: true" do
-      Enum.take_while(MoreStreamData.decimal(allow_infinity?: true), &Decimal.inf?/1)
+      Enum.take_while(decimal(allow_infinity?: true), &Decimal.inf?/1)
     end
   end
 
-  describe "integer/1" do
+  describe "more_integer/1" do
     property "range behaves as StreamData.integer/1" do
-      check all value <- MoreStreamData.integer(-100..100) do
+      check all value <- more_integer(-100..100) do
         assert value in -100..100
       end
     end
 
-    property "integer/0 behaves as StreamData.integer/0" do
-      check all value <- MoreStreamData.integer() do
+    property "more_integer/0 behaves as StreamData.integer/0" do
+      check all value <- more_integer() do
         assert is_integer(value)
       end
     end
 
     property "generates integers greater than :min" do
-      check all lower <- MoreStreamData.integer(),
-                value <- MoreStreamData.integer(min: lower) do
+      check all lower <- more_integer(),
+                value <- more_integer(min: lower) do
         assert value >= lower
       end
     end
 
     property "generates integers lower than :max" do
-      check all upper <- MoreStreamData.integer(),
-                value <- MoreStreamData.integer(max: upper) do
+      check all upper <- more_integer(),
+                value <- more_integer(max: upper) do
         assert value <= upper
       end
     end
 
     test ":min > :max raises" do
       assert_raise ArgumentError, fn ->
-        Enum.take(MoreStreamData.integer(min: 100, max: 10), 1)
+        Enum.take(more_integer(min: 100, max: 10), 1)
       end
     end
 
     property "passing :min and :max generates ranges" do
-      check all value <- MoreStreamData.integer(min: -100, max: 100) do
+      check all value <- more_integer(min: -100, max: 100) do
         assert value in -100..100
       end
     end
   end
 
-  describe "float/1" do
+  describe "more_float/1" do
     property "float/0 behaves same as StreamData.float/0" do
-      check all value <- MoreStreamData.float() do
+      check all value <- more_float() do
         assert is_float(value)
       end
     end
 
     property "exclude_min?: true does not generate the min value" do
-      check all value <- MoreStreamData.float(min: 0.0, exclude_min?: true) do
+      check all value <- more_float(min: 0.0, exclude_min?: true) do
         refute value == 0.0
       end
     end
 
     test "exclude_min?: true without min raises" do
       assert_raise ArgumentError, fn ->
-        Enum.take(MoreStreamData.float(exclude_min?: true, max: 10.0), 1)
+        Enum.take(more_float(exclude_min?: true, max: 10.0), 1)
       end
     end
 
     property "exclude_max?: true does not generate the min value" do
-      check all value <- MoreStreamData.float(max: 0.0, exclude_max?: true) do
+      check all value <- more_float(max: 0.0, exclude_max?: true) do
         refute value == 0.0
       end
     end
 
     test "exclude_max?: true without max raises" do
       assert_raise ArgumentError, fn ->
-        Enum.take(MoreStreamData.float(exclude_max?: true, min: 10.0), 1)
+        Enum.take(more_float(exclude_max?: true, min: 10.0), 1)
       end
     end
   end
