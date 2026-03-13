@@ -93,13 +93,11 @@ defmodule MoreStreamData do
   defp bits(6), do: 128
 
   defp ip_from_version(4) do
-    StreamData.integer(0..(2 ** 32 - 1))
-    |> StreamData.map(&(to_ip(&1, 4) |> ip_to_string()))
+    StreamData.map(StreamData.integer(0..(2 ** 32 - 1)), &(to_ip(&1, 4) |> ip_to_string()))
   end
 
   defp ip_from_version(6) do
-    StreamData.integer(0..(2 ** 128 - 1))
-    |> StreamData.map(&(to_ip(&1, 6) |> ip_to_string()))
+    StreamData.map(StreamData.integer(0..(2 ** 128 - 1)), &(to_ip(&1, 6) |> ip_to_string()))
   end
 
   defp ip_to_string(ip) when is_tuple(ip), do: ip |> :inet.ntoa() |> to_string()
@@ -165,11 +163,7 @@ defmodule MoreStreamData do
   """
   def float(opts \\ []) do
     opts = Keyword.merge([exclude_min?: false, exclude_max?: false], opts)
-
-    opts
-    |> StreamData.float()
-    |> maybe_exclude_min(opts)
-    |> maybe_exclude_max(opts)
+    opts |> StreamData.float() |> maybe_exclude_min(opts) |> maybe_exclude_max(opts)
   end
 
   defp maybe_exclude_min(strategy, opts) do
@@ -204,12 +198,7 @@ defmodule MoreStreamData do
     unless excluded by `:min` and `:max` values.
   """
   def decimal(opts \\ []) do
-    freqs = [{15, decimal_gen(opts)}]
-
-    freqs
-    |> add_nan(opts)
-    |> add_infinity(opts)
-    |> StreamData.frequency()
+    [{15, decimal_gen(opts)}] |> add_nan(opts) |> add_infinity(opts) |> StreamData.frequency()
   end
 
   defp add_infinity(freqs, opts) do
