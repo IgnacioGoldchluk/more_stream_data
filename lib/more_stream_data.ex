@@ -270,4 +270,11 @@ defmodule MoreStreamData do
   # Otherwise the generated numbers are too large for practical applications
   defp adjust_exp(exp) when exp <= 0, do: exp
   defp adjust_exp(exp), do: :math.log(exp) |> trunc()
+
+  @doc """
+  Returns an [IANA Timezone](https://www.iana.org/time-zones)
+  """
+  def timezone do
+    StreamData.member_of(Tzdata.zone_list())
+  end
 end

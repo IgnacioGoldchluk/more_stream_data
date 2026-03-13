@@ -224,4 +224,13 @@ defmodule MoreStreamDataTest do
       end
     end
   end
+
+  describe "timezone/0" do
+    property "returns a valid timezone" do
+      check all timezone <- timezone() do
+        assert Tzdata.zone_exists?(timezone)
+        DateTime.shift_zone!(DateTime.utc_now(), timezone, Tzdata.TimeZoneDatabase)
+      end
+    end
+  end
 end
