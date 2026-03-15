@@ -105,14 +105,14 @@ defmodule MoreStreamData do
   defp ip_to_string(ip) when is_tuple(ip), do: ip |> :inet.ntoa() |> to_string()
 
   @doc """
-  Generates `Time.t/0` structures according to the given `options`.
+  Generates `Time.t` structures according to the given `options`.
 
   Shrinks towards `~T[00:00:00]` or the specified `:min`.
 
   ## Options
 
-    - `:min` - (`Time.t/0`) the minimum time to generate
-    - `:max` - (`Time.t/0`) the maximum time to generate
+    - `:min` - (`Time.t()`) the minimum time to generate
+    - `:max` - (`Time.t()`) the maximum time to generate
   """
   @spec time(Keyword.t()) :: StreamData.t(Time.t())
   def time(opts \\ []) when is_list(opts) do
@@ -187,14 +187,14 @@ defmodule MoreStreamData do
   end
 
   @doc """
-  Generates `Decimal.t/0` values based on the given `opts`.
+  Generates `Decimal.t()` values based on the given `opts`.
 
   Shrinks towards `0` or the specified `min`
 
   ## Options
 
-    - `:min` - (`Decimal.t/0`) the minimum value to generate
-    - `:max` - (`Decimal.t/0`) the maximum value to generate
+    - `:min` - (`Decimal.t()`) the minimum value to generate
+    - `:max` - (`Decimal.t()`) the maximum value to generate
     - `:precision` - (`pos_integer()`) number of decimal places to consider
     - `:allow_nan?` - (`boolean() | nil()`) whether to allow `"NaN"`. If unspecified,
     `"NaN"` is allowed unless both `min` and `max` are specified.
@@ -286,15 +286,15 @@ defmodule MoreStreamData do
   end
 
   @doc """
-  Generates a `Duration.t/0` struct.
+  Generates a `Duration.t()` struct.
 
   Shrinks towards all values going to 0. Keep in mind the values in
   `Duration.t()` structs can be negative. Therefore calling
   `duration(min: Duration.new!(day: 1))` can generate `Duration.new!(day: -20)`
 
   ## Options
-    - `:min` - (`Duration.t/0 | Keyword.t()`) the minimum duration to generate.
-    - `:max` - (`Duration.t/0 | Keyword.t()`) the maximum duration to generate.
+    - `:min` - (`Duration.t() | Keyword.t()`) the minimum duration to generate.
+    - `:max` - (`Duration.t() | Keyword.t()`) the maximum duration to generate.
 
   Keep in mind that same as `Duration.t()`, units are collapsed into months, seconds
   and microseconds. Therefore passing `min: [week: 5]` can set any value between

@@ -1,7 +1,5 @@
 defmodule MoreStreamData.Duration do
-  @moduledoc """
-  Utility functions for `Duration.t()` generators
-  """
+  @moduledoc false
 
   @s_to_minute 60
   @s_to_hour 60 * @s_to_minute

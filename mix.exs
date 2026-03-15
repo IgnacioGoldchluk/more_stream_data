@@ -24,7 +24,8 @@ defmodule MoreStreamData.MixProject do
       {:stream_data, "~> 1.0"},
       {:decimal, "~> 2.3"},
       {:tzdata, "~> 1.1"},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false, warn_if_outdated: true}
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
     ]
