@@ -4,8 +4,9 @@ defmodule MoreStreamData do
   """
 
   import Bitwise
-  require Decimal
   import Decimal, only: [is_decimal: 1]
+
+  require Decimal
 
   @doc """
   Generates an IPv4 or IPv6 address as a string
@@ -113,7 +114,7 @@ defmodule MoreStreamData do
     - `:max` - (`Time.t/0`) the maximum time to generate
   """
   @spec time(Keyword.t()) :: StreamData.t(Time.t())
-  def time(opts \\ []) do
+  def time(opts \\ []) when is_list(opts) do
     min = Keyword.get_lazy(opts, :min, &min_time/0)
     max = Keyword.get_lazy(opts, :max, &max_time/0)
 
@@ -143,7 +144,7 @@ defmodule MoreStreamData do
   def more_integer(opts) when is_list(opts) do
     case {opts[:min], opts[:max]} do
       {nil, nil} -> StreamData.integer()
-      {nil, max} -> StreamData.non_negative_integer() |> StreamData.map(&(max + &1 * -1))
+      {nil, max} -> StreamData.non_negative_integer() |> StreamData.map(&(max - &1))
       {min, nil} -> StreamData.non_negative_integer() |> StreamData.map(&(&1 + min))
       {min, max} when min <= max -> more_integer(min..max)
       {min, max} -> raise ArgumentError, "invalid range: min #{min}, max #{max}"
@@ -163,7 +164,7 @@ defmodule MoreStreamData do
     Defaults to `false`
   """
   @spec more_float(Keyword.t()) :: StreamData.t(float())
-  def more_float(opts \\ []) do
+  def more_float(opts \\ []) when is_list(opts) do
     opts = Keyword.merge([exclude_min?: false, exclude_max?: false], opts)
     opts |> StreamData.float() |> maybe_exclude_min(opts) |> maybe_exclude_max(opts)
   end
@@ -201,7 +202,7 @@ defmodule MoreStreamData do
     generated even if `:min` and `:max` are specified.
   """
   @spec decimal(Keyword.t()) :: StreamData.t(Decimal.t())
-  def decimal(opts \\ []) do
+  def decimal(opts \\ []) when is_list(opts) do
     [{15, decimal_gen(opts)}] |> add_nan(opts) |> add_infinity(opts) |> StreamData.frequency()
   end
 
@@ -276,10 +277,96 @@ defmodule MoreStreamData do
   defp adjust_exp(exp), do: :math.log(exp) |> trunc()
 
   @doc """
-  Returns an [IANA Timezone](https://www.iana.org/time-zones)
+  Generates an [IANA Timezone](https://www.iana.org/time-zones)
   """
   @spec timezone :: StreamData.t(Calendar.time_zone())
   def timezone do
     StreamData.member_of(Tzdata.zone_list())
+  end
+
+  @doc """
+  Generates a `Duration.t/0` struct.
+
+  Shrinks towards all values going to 0. Keep in mind the values in
+  `Duration.t()` structs can be negative. Therefore calling
+  `duration(min: Duration.new!(day: 1))` can generate `Duration.new!(day: -20)`
+
+  ## Options
+    - `:min` - (`Duration.t/0 | Keyword.t()`) the minimum duration to generate.
+    - `:max` - (`Duration.t/0 | Keyword.t()`) the maximum duration to generate.
+
+  Keep in mind that same as `Duration.t()`, units are collapsed into months, seconds
+  and microseconds. Therefore passing `min: [week: 5]` can set any value between
+  `:microsecond` and `:week`, but `:year` and `:month` are always set to 0. This is
+  because there is no conversion from `week` to `month`
+  """
+  @spec duration(Keyword.t()) :: StreamData.t(Duration.t())
+  def duration(opts \\ []) when is_list(opts) do
+    case {opts[:min], opts[:max]} do
+      {nil, nil} -> unbounded_duration()
+      {min, _} when is_list(min) -> duration(Keyword.update!(opts, :min, &Duration.new!/1))
+      {_, max} when is_list(max) -> duration(Keyword.update!(opts, :min, &Duration.new!/1))
+      {%Duration{} = min, nil} -> MoreStreamData.Duration.normalize(min) |> bounded_min_duration()
+    end
+  end
+
+  defp unbounded_duration do
+    StreamData.fixed_map(%{
+      year: StreamData.integer(),
+      month: StreamData.integer(),
+      day: StreamData.integer(),
+      hour: StreamData.integer(),
+      minute: StreamData.integer(),
+      second: StreamData.integer(),
+      microsecond: StreamData.tuple({StreamData.integer(), StreamData.integer(1..6)})
+    })
+    |> StreamData.map(&(&1 |> Enum.to_list() |> Duration.new!()))
+  end
+
+  defp bounded_min_duration(min) do
+    StreamData.tuple({us_min(min), second_min(min), month_min(min)})
+    |> StreamData.map(fn {us_min, second_min, month_min} ->
+      us_min |> Map.merge(second_min) |> Map.merge(month_min) |> Duration.new!()
+    end)
+  end
+
+  defp us_min(%{microsecond: {min_val, precision}}) do
+    StreamData.fixed_map(%{
+      microsecond: StreamData.tuple({more_integer(min: min_val), StreamData.constant(precision)})
+    })
+  end
+
+  defp us_min(_), do: StreamData.constant(Map.new())
+
+  defp second_min(%{second: 0}), do: StreamData.constant(Map.new())
+
+  defp second_min(%{second: second}) do
+    StreamData.fixed_map(%{
+      week: StreamData.integer(),
+      day: StreamData.integer(),
+      hour: StreamData.integer(),
+      minute: StreamData.integer()
+    })
+    |> StreamData.bind(fn duration ->
+      normalized = MoreStreamData.Duration.normalize(duration)
+      min = second - normalized[:second]
+
+      StreamData.bind(more_integer(min: min), fn seconds ->
+        StreamData.constant(Map.put(duration, :second, seconds))
+      end)
+    end)
+  end
+
+  defp month_min(%{month: 0}), do: StreamData.constant(Map.new())
+
+  defp month_min(%{month: month}) do
+    StreamData.bind(StreamData.fixed_map(%{year: StreamData.integer()}), fn duration ->
+      normalized = MoreStreamData.Duration.normalize(duration)
+      min = month - normalized[:month]
+
+      StreamData.bind(more_integer(min: min), fn months ->
+        StreamData.constant(Map.put(duration, :month, months))
+      end)
+    end)
   end
 end

@@ -233,4 +233,19 @@ defmodule MoreStreamDataTest do
       end
     end
   end
+
+  describe "duration/1" do
+    property "unspecified min/max generates unbounded durations" do
+      check all duration <- duration() do
+        DateTime.utc_now() |> DateTime.shift(duration)
+      end
+    end
+
+    property "generates durations >= min" do
+      check all min <- duration(), duration <- duration(min: min) do
+        now = DateTime.utc_now()
+        refute DateTime.shift(now, min) |> DateTime.after?(DateTime.shift(now, duration))
+      end
+    end
+  end
 end

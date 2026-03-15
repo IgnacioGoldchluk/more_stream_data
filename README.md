@@ -19,6 +19,3 @@ Additional strategies for `StreamData`. The goal of this library is to reach fea
   - [x] `timezone`
   - [ ] `timedeltas`: Implement using `Duration`
   - [x] `ip_address`
-
-- [ ] `unique_by` in lists
-
