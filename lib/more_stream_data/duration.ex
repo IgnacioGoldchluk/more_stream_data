@@ -11,6 +11,7 @@ defmodule MoreStreamData.Duration do
   @month_to_year 12
 
   def normalize(%Duration{} = duration), do: duration |> Map.from_struct() |> normalize()
+  def normalize(nil), do: nil
 
   def normalize(duration) when is_map(duration) do
     Enum.reduce(duration, %{month: 0, second: 0}, fn kv, acc ->

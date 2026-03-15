@@ -247,5 +247,22 @@ defmodule MoreStreamDataTest do
         refute DateTime.shift(now, min) |> DateTime.after?(DateTime.shift(now, duration))
       end
     end
+
+    property "generates durations <= max" do
+      check all max <- duration(), duration <- duration(max: max) do
+        now = DateTime.utc_now()
+        refute DateTime.shift(now, max) |> DateTime.before?(DateTime.shift(now, duration))
+      end
+    end
+
+    property "generates durations bounded between min and max args" do
+      check all min <- duration(),
+                max <- duration(min: min),
+                duration <- duration(min: min, max: max) do
+        now = DateTime.utc_now()
+        refute DateTime.shift(now, min) |> DateTime.after?(DateTime.shift(now, duration))
+        refute DateTime.shift(now, max) |> DateTime.before?(DateTime.shift(now, duration))
+      end
+    end
   end
 end

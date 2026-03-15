@@ -5,6 +5,7 @@ defmodule MoreStreamData do
 
   import Bitwise
   import Decimal, only: [is_decimal: 1]
+  import MoreStreamData.Duration, only: [normalize: 1]
 
   require Decimal
 
@@ -306,7 +307,7 @@ defmodule MoreStreamData do
       {nil, nil} -> unbounded_duration()
       {min, _} when is_list(min) -> duration(Keyword.update!(opts, :min, &Duration.new!/1))
       {_, max} when is_list(max) -> duration(Keyword.update!(opts, :min, &Duration.new!/1))
-      {%Duration{} = min, nil} -> MoreStreamData.Duration.normalize(min) |> bounded_min_duration()
+      {min, max} -> bounded_duration(normalize(min), normalize(max))
     end
   end
 
@@ -323,24 +324,35 @@ defmodule MoreStreamData do
     |> StreamData.map(&(&1 |> Enum.to_list() |> Duration.new!()))
   end
 
-  defp bounded_min_duration(min) do
-    StreamData.tuple({us_min(min), second_min(min), month_min(min)})
-    |> StreamData.map(fn {us_min, second_min, month_min} ->
-      us_min |> Map.merge(second_min) |> Map.merge(month_min) |> Duration.new!()
+  defp bounded_duration(min, max) do
+    StreamData.tuple({bounded_us(min, max), bounded_second(min, max), bounded_month(min, max)})
+    |> StreamData.map(fn {us, second, month} ->
+      us |> Map.merge(second) |> Map.merge(month) |> Duration.new!()
     end)
   end
 
-  defp us_min(%{microsecond: {min_val, precision}}) do
+  defp bounded_us(%{microsecond: {min_val, p1}}, %{microsecond: {max_val, p2}}) do
+    us([min: min_val, max: max_val], max(p1, p2))
+  end
+
+  defp bounded_us(_, %{microsecond: {max_val, precision}}), do: us([max: max_val], precision)
+  defp bounded_us(%{microsecond: {min_val, precision}}, _), do: us([min: min_val], precision)
+  defp bounded_us(_, _), do: StreamData.constant(Map.new())
+
+  defp us(kw, precision) do
     StreamData.fixed_map(%{
-      microsecond: StreamData.tuple({more_integer(min: min_val), StreamData.constant(precision)})
+      microsecond: StreamData.tuple({more_integer(kw), StreamData.constant(precision)})
     })
   end
 
-  defp us_min(_), do: StreamData.constant(Map.new())
+  defp bounded_second(%{second: min}, %{second: max}) when min != 0 and max != 0,
+    do: second(min: min, max: max)
 
-  defp second_min(%{second: 0}), do: StreamData.constant(Map.new())
+  defp bounded_second(_, %{second: max}) when max != 0, do: second(max: max)
+  defp bounded_second(%{second: min}, _) when min != 0, do: second(min: min)
+  defp bounded_second(_, _), do: StreamData.constant(Map.new())
 
-  defp second_min(%{second: second}) do
+  defp second(kw) do
     StreamData.fixed_map(%{
       week: StreamData.integer(),
       day: StreamData.integer(),
@@ -348,24 +360,29 @@ defmodule MoreStreamData do
       minute: StreamData.integer()
     })
     |> StreamData.bind(fn duration ->
-      normalized = MoreStreamData.Duration.normalize(duration)
-      min = second - normalized[:second]
+      normalized = normalize(duration)
+      kw = Keyword.new(kw, fn {key, value} -> {key, value - normalized[:second]} end)
 
-      StreamData.bind(more_integer(min: min), fn seconds ->
-        StreamData.constant(Map.put(duration, :second, seconds))
+      StreamData.bind(more_integer(kw), fn second ->
+        StreamData.constant(Map.put(duration, :second, second))
       end)
     end)
   end
 
-  defp month_min(%{month: 0}), do: StreamData.constant(Map.new())
+  defp bounded_month(%{month: min}, %{month: max}) when min != 0 and max != 0,
+    do: month(min: min, max: max)
 
-  defp month_min(%{month: month}) do
+  defp bounded_month(_, %{month: max}) when max != 0, do: month(max: max)
+  defp bounded_month(%{month: min}, _) when min != 0, do: month(min: min)
+  defp bounded_month(_, _), do: StreamData.constant(Map.new())
+
+  defp month(kw) do
     StreamData.bind(StreamData.fixed_map(%{year: StreamData.integer()}), fn duration ->
-      normalized = MoreStreamData.Duration.normalize(duration)
-      min = month - normalized[:month]
+      normalized = normalize(duration)
+      kw = Keyword.new(kw, fn {key, value} -> {key, value - normalized[:month]} end)
 
-      StreamData.bind(more_integer(min: min), fn months ->
-        StreamData.constant(Map.put(duration, :month, months))
+      StreamData.bind(more_integer(kw), fn month ->
+        StreamData.constant(Map.put(duration, :month, month))
       end)
     end)
   end
