@@ -24,10 +24,25 @@ defmodule MoreStreamData do
   @spec ip_address(Keyword.t()) :: String.t()
   def ip_address(opts \\ []) when is_list(opts) do
     case {opts[:version], opts[:network]} do
-      {v, nil} when v in [4, 6] -> ip_from_version(v)
-      {nil, ip_range} when is_binary(ip_range) -> ip_from_range(ip_range)
-      {v, ip_range} when v in [4, 6] and is_binary(ip_range) -> ip_from_range(ip_range, v)
-      {nil, nil} -> StreamData.one_of([ip_from_version(4), ip_from_version(6)])
+      {v, nil} when v in [4, 6] ->
+        StreamData.one_of([
+          ip_from_version(v),
+          StreamData.member_of(special_ranges(v)) |> StreamData.bind(&ip_from_range/1)
+        ])
+
+      {nil, ip_range} when is_binary(ip_range) ->
+        ip_from_range(ip_range)
+
+      {v, ip_range} when v in [4, 6] and is_binary(ip_range) ->
+        ip_from_range(ip_range, v)
+
+      {nil, nil} ->
+        StreamData.one_of([
+          ip_from_version(4),
+          ip_from_version(6),
+          StreamData.member_of(special_ranges(4)) |> StreamData.bind(&ip_from_range/1),
+          StreamData.member_of(special_ranges(6)) |> StreamData.bind(&ip_from_range/1)
+        ])
     end
   end
 
@@ -103,6 +118,61 @@ defmodule MoreStreamData do
   end
 
   defp ip_to_string(ip) when is_tuple(ip), do: ip |> :inet.ntoa() |> to_string()
+
+  defp special_ranges(4) do
+    # From https://www.iana.org/assignments/iana-ipv4-special-registry/
+    [
+      "0.0.0.0/8",
+      "10.0.0.0/8",
+      "100.64.0.0/10",
+      "127.0.0.0/8",
+      "169.254.0.0/16",
+      "172.16.0.0/12",
+      "192.0.0.0/24",
+      "192.0.0.0/29",
+      "192.0.0.8/32",
+      "192.0.0.9/32",
+      "192.0.0.10/32",
+      "192.0.0.170/32",
+      "192.0.0.171/32",
+      "192.0.2.0/24",
+      "192.31.196.0/24",
+      "192.52.193.0/24",
+      "192.88.99.0/24",
+      "192.168.0.0/16",
+      "192.175.48.0/24",
+      "198.18.0.0/15",
+      "198.51.100.0/24",
+      "203.0.113.0/24",
+      "240.0.0.0/4",
+      "255.255.255.255/32"
+    ]
+  end
+
+  defp special_ranges(6) do
+    [
+      "::1/128",
+      "::/128",
+      "::ffff:0:0/96",
+      "64:ff9b::/96",
+      "64:ff9b:1::/48",
+      "100::/64",
+      "2001::/23",
+      "2001::/32",
+      "2001:1::1/128",
+      "2001:1::2/128",
+      "2001:2::/48",
+      "2001:3::/32",
+      "2001:4:112::/48",
+      "2001:10::/28",
+      "2001:20::/28",
+      "2001:db8::/32",
+      "2002::/16",
+      "2620:4f:8000::/48",
+      "fc00::/7",
+      "fe80::/10"
+    ]
+  end
 
   @doc """
   Generates `Time.t` structures according to the given `options`.
