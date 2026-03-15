@@ -7,7 +7,7 @@ defmodule MoreStreamData.DurationTest do
       assert MoreStreamData.Duration.normalize(%{minute: 1}) == %{second: 60, month: 0}
       assert MoreStreamData.Duration.normalize(%{hour: 1}) == %{second: 3600, month: 0}
       assert MoreStreamData.Duration.normalize(%{minute: 1, hour: 1}) == %{second: 3660, month: 0}
-      assert MoreStreamData.Duration.normalize(%{day: 1}) == %{second: 86400, month: 0}
+      assert MoreStreamData.Duration.normalize(%{day: 1}) == %{second: 86_400, month: 0}
       assert MoreStreamData.Duration.normalize(%{week: 1}) == %{second: 604_800, month: 0}
     end
 
