@@ -415,11 +415,9 @@ defmodule MoreStreamData do
     })
   end
 
-  defp bounded_second(%{second: min}, %{second: max}) when min != 0 and max != 0,
-    do: second(min: min, max: max)
-
-  defp bounded_second(_, %{second: max}) when max != 0, do: second(max: max)
-  defp bounded_second(%{second: min}, _) when min != 0, do: second(min: min)
+  defp bounded_second(%{second: min}, %{second: max}), do: second(min: min, max: max)
+  defp bounded_second(_, %{second: max}), do: second(max: max)
+  defp bounded_second(%{second: min}, _), do: second(min: min)
   defp bounded_second(_, _), do: StreamData.constant(Map.new())
 
   defp second(kw) do
@@ -439,11 +437,9 @@ defmodule MoreStreamData do
     end)
   end
 
-  defp bounded_month(%{month: min}, %{month: max}) when min != 0 and max != 0,
-    do: month(min: min, max: max)
-
-  defp bounded_month(_, %{month: max}) when max != 0, do: month(max: max)
-  defp bounded_month(%{month: min}, _) when min != 0, do: month(min: min)
+  defp bounded_month(%{month: min}, %{month: max}), do: month(min: min, max: max)
+  defp bounded_month(_, %{month: max}), do: month(max: max)
+  defp bounded_month(%{month: min}, _), do: month(min: min)
   defp bounded_month(_, _), do: StreamData.constant(Map.new())
 
   defp month(kw) do

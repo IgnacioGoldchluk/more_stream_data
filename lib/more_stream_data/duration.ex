@@ -12,7 +12,7 @@ defmodule MoreStreamData.Duration do
   def normalize(nil), do: nil
 
   def normalize(duration) when is_map(duration) do
-    Enum.reduce(duration, %{month: 0, second: 0}, fn kv, acc ->
+    Enum.reduce(duration, Map.new(), fn kv, acc ->
       {unit, value} = normalize(kv)
       Map.update(acc, unit, value, &(&1 + value))
     end)
