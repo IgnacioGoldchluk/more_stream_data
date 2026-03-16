@@ -14,8 +14,8 @@ Additional strategies for `StreamData`. The goal of this library is to reach fea
   - [ ] `emails`
   - [ ] `domains`
   - [ ] `urls`
-  - [ ] `datetime`
+  - [x] `datetime`
   - [x] `time`
   - [x] `timezone`
-  - [ ] `timedeltas`: Implement using `Duration`
+  - [x] `timedeltas`: Implement using `Duration`
   - [x] `ip_address`
