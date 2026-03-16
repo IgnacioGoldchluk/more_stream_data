@@ -456,4 +456,65 @@ defmodule MoreStreamData do
       end)
     end)
   end
+
+  @doc """
+  Generates a `DateTime.t()` struct
+
+  Shrinks according to the provided options:
+    - `:min` and/or `:max` provided: towards `:min`
+    - `:max` provided: towards `:max`
+    - `:date` and/or `:time` provided: towards the given
+    - No range provided: towards `DateTime.utc_now/0`
+
+  ## Options
+
+    - `:min` - (`DateTime.t()`) if present, only datetimes after this value are generated
+    - `:max` - (`DateTime.t()`) if present, only datetimes before this value are generated
+    - `:timezone` - (`StreamData.t(String.t())`) timezones to generate datetimes from. If
+    not present defaults to drawing values from `timezone/0`
+    - `:date` - (`StreamData.t(Date.t())`) if present, uses this strategy for the date part
+    - `:time` - (`StreamData.t(Time.t())`) if present, uses this strategy for the time part
+
+  If `:min` and/or `:max` are provided then `:date`, `:time` and `:timezone` are ignored
+  """
+  @spec datetime(Keyword.t()) :: StreamData.t(DateTime.t())
+  def datetime(opts \\ []) when is_list(opts) do
+    case {opts[:min], opts[:max]} do
+      {%DateTime{} = min, %DateTime{} = max} ->
+        seconds = DateTime.diff(max, min)
+
+        StreamData.integer(0..seconds)
+        |> StreamData.map(&DateTime.add(min, &1, :second, Tzdata.TimeZoneDatabase))
+
+      {%DateTime{} = min, nil} ->
+        StreamData.non_negative_integer()
+        |> StreamData.map(&DateTime.add(min, &1, :second, Tzdata.TimeZoneDatabase))
+
+      {nil, %DateTime{} = max} ->
+        StreamData.non_negative_integer()
+        |> StreamData.map(&DateTime.add(max, &1 * -1, :second, Tzdata.TimeZoneDatabase))
+
+      {nil, nil} ->
+        unbounded_datetime(opts)
+    end
+  end
+
+  defp unbounded_datetime(opts) do
+    tz_strategy = Keyword.get_lazy(opts, :timezone, fn -> timezone() end)
+
+    if Enum.any?(opts, fn {k, _} -> k in [:date, :time] end) do
+      date_strategy = Keyword.get_lazy(opts, :date, fn -> StreamData.date() end)
+      time_strategy = Keyword.get_lazy(opts, :time, fn -> time() end)
+
+      StreamData.tuple({date_strategy, time_strategy, tz_strategy})
+      |> StreamData.map(fn {date, time, tz} ->
+        DateTime.new!(date, time, tz, Tzdata.TimeZoneDatabase)
+      end)
+    else
+      StreamData.map(StreamData.tuple({StreamData.integer(), tz_strategy}), fn {seconds, tz} ->
+        DateTime.now!(tz, Tzdata.TimeZoneDatabase)
+        |> DateTime.add(seconds, :second, Tzdata.TimeZoneDatabase)
+      end)
+    end
+  end
 end

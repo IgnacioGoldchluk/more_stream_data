@@ -265,4 +265,51 @@ defmodule MoreStreamDataTest do
       end
     end
   end
+
+  describe "datetime/1" do
+    test "generates datetimes with unspecified ranges" do
+      datetime() |> Enum.take(10) |> Enum.all?(fn %DateTime{} = _dt -> true end)
+    end
+
+    property "generates datetimes greater than or equal to :min" do
+      check all min <- datetime(), dt <- datetime(min: min) do
+        refute DateTime.before?(dt, min)
+      end
+    end
+
+    property "generates datetimes lower than or equal to :max" do
+      check all max <- datetime(), dt <- datetime(max: max) do
+        refute DateTime.after?(dt, max)
+      end
+    end
+
+    property "generates datetimes between :min and :max" do
+      check all min <- datetime(), max <- datetime(min: min), dt <- datetime(min: min, max: max) do
+        refute DateTime.before?(dt, min)
+        refute DateTime.after?(dt, max)
+      end
+    end
+
+    property "generates datetimes based on :date and :time strategy" do
+      min_date = Date.utc_today()
+
+      check all dt <- datetime(date: date(min: min_date)) do
+        refute Date.before?(DateTime.to_date(dt), min_date)
+      end
+
+      min_time = ~T[12:00:00]
+
+      check all dt <- datetime(time: time(min: min_time)) do
+        refute Time.before?(DateTime.to_time(dt), min_time)
+      end
+    end
+
+    property "generates datetimes in the specified timezones" do
+      tz = "America/Cuiaba"
+
+      check all dt <- datetime(timezone: StreamData.constant(tz)) do
+        assert dt.time_zone == tz
+      end
+    end
+  end
 end
