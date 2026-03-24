@@ -362,6 +362,14 @@ defmodule MoreStreamDataTest do
     end
   end
 
+  describe "url/0" do
+    property "generates valid URLs" do
+      check all url <- url() do
+        URI.new!(url)
+      end
+    end
+  end
+
   common_regexes = [
     # Decimal numbers
     ~r/^-?\d*(\.\d+)?$/,

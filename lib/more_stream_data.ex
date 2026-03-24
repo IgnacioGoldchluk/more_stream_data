@@ -584,4 +584,39 @@ defmodule MoreStreamData do
 
     opts
   end
+
+  @doc """
+  Generates valid http/https URLs according to [RFC-3986](https://www.rfc-editor.org/rfc/rfc3986.html)
+  """
+  @spec url() :: StreamData.t(String.t())
+  def url do
+    scheme = StreamData.member_of(["http", "https"])
+    port = StreamData.integer(1..65_535) |> StreamData.map(&":#{&1}")
+
+    path =
+      ascii_printable()
+      |> StreamData.string()
+      |> StreamData.map(fn path -> URI.encode(path, &URI.char_unreserved?/1) end)
+      |> StreamData.list_of()
+      |> StreamData.map(&Enum.join(&1, "/"))
+
+    fragment =
+      ascii_printable()
+      |> StreamData.string()
+      |> StreamData.map(fn fragment -> "##{URI.encode(fragment, &URI.char_unreserved?/1)}" end)
+
+    StreamData.tuple({
+      scheme,
+      domain(),
+      StreamData.one_of([blank(), port]),
+      path,
+      StreamData.one_of([blank(), fragment])
+    })
+    |> StreamData.map(fn {scheme, domain, port, path, fragment} ->
+      "#{scheme}://#{domain}#{port}/#{path}#{fragment}"
+    end)
+  end
+
+  defp ascii_printable, do: Enum.filter(0..255, fn char -> String.printable?(<<char>>) end)
+  defp blank, do: StreamData.constant("")
 end
