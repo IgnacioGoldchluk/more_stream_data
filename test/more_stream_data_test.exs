@@ -313,6 +313,55 @@ defmodule MoreStreamDataTest do
     end
   end
 
+  describe "domain/1" do
+    property "unbounded domain generates labels and domains according to RFC-1035" do
+      check all dom <- domain() do
+        assert String.length(dom) <= 255
+        [_tld | labels] = String.split(dom, ".") |> Enum.reverse()
+
+        Enum.each(labels, fn l ->
+          assert String.length(l) <= 63
+          refute String.starts_with?(l, "-")
+          refute String.ends_with?(l, "-")
+        end)
+      end
+    end
+
+    property "does not generate domains longer than :max_length" do
+      check all max_length <- StreamData.integer(4..255), dom <- domain(max_length: max_length) do
+        assert String.length(dom) <= max_length
+      end
+    end
+
+    property "does not generate labels longer than :max_label_length" do
+      check all max_label_length <- StreamData.integer(1..63),
+                dom <- domain(max_label_length: max_label_length) do
+        [_tld | labels] = String.split(dom, ".") |> Enum.reverse()
+        Enum.each(labels, fn label -> assert String.length(label) <= max_label_length end)
+      end
+    end
+
+    test "raises if max_length is not between 4.255" do
+      assert_raise ArgumentError, ":max_length must be between [4, 255], got: 3", fn ->
+        domain(max_length: 3) |> Enum.take(1)
+      end
+
+      assert_raise ArgumentError, ":max_length must be between [4, 255], got: 512", fn ->
+        domain(max_length: 512) |> Enum.take(1)
+      end
+    end
+
+    test "raises if :max_label_length is not between 1..63" do
+      assert_raise ArgumentError, ":max_label_length must be between [1, 63], got: 0", fn ->
+        domain(max_label_length: 0) |> Enum.take(1)
+      end
+
+      assert_raise ArgumentError, ":max_label_length must be between [1, 63], got: 64", fn ->
+        domain(max_label_length: 64) |> Enum.take(1)
+      end
+    end
+  end
+
   common_regexes = [
     # Decimal numbers
     ~r/^-?\d*(\.\d+)?$/,

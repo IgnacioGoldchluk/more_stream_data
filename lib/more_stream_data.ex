@@ -9,7 +9,7 @@ defmodule MoreStreamData do
 
   require Decimal
 
-  alias MoreStreamData.RegexGen
+  alias MoreStreamData.{Domain, RegexGen}
 
   @doc """
   Generates an IPv4 or IPv6 address as a string
@@ -525,7 +525,63 @@ defmodule MoreStreamData do
   - Backreferences
   - `\\b` word boundary
   - Modifiers
+
+  Shrinks towards lower ASCII characters and shorter expressions. For example
+  `from_regex(~r/[A-Z]+_[a-z]+/)` shrinks towards `A_a`
   """
-  @spec from_regex(Regex.t() | String.t()) :: String.t()
+  @spec from_regex(Regex.t() | String.t()) :: StreamData.t(String.t())
   def from_regex(regex), do: RegexGen.Strategy.from_regex(regex)
+
+  @doc """
+  Generates valid domains according to [RFC-1035](https://datatracker.ietf.org/doc/html/rfc1035)
+
+  ## Options
+
+    - `:max_length` - (`pos_integer()`) the maximum length of the entire domain.
+    Must be `4 <= :max_length <= 255` as per RFC-1035. Defaults to 255.
+    - `:max_label_length` - (`pos_integer()`) the maximum length of each label.
+    Must be `1 <= :max_label_length <= 63` as per RFC-1035. Defaults to 63.
+  """
+  @spec domain(Keyword.t()) :: StreamData.t(String.t())
+  def domain(opts \\ []) do
+    opts = validate_domain_opts(opts)
+
+    domain_gen = Domain.domain_gen(Keyword.fetch!(opts, :max_length))
+    label_gen = Domain.label_gen(Keyword.fetch!(opts, :max_label_length))
+
+    # Maximum number of subdomains is 126:
+    # 1 character subdomain, 1 "." character = 252, leaving 3 characters for TLD + "."
+    StreamData.tuple({StreamData.list_of(label_gen, max_length: 126), domain_gen})
+    |> StreamData.bind(fn {labels, tld} ->
+      StreamData.constant(take_labels(labels, opts[:max_length], tld))
+    end)
+  end
+
+  defp take_labels(labels, max_length, tld) do
+    Enum.reduce_while(labels, tld, fn label, acc ->
+      new_acc = label <> "." <> acc
+
+      if String.length(new_acc) > max_length do
+        {:halt, acc}
+      else
+        {:cont, new_acc}
+      end
+    end)
+  end
+
+  defp validate_domain_opts(opts) do
+    opts = Keyword.merge([max_length: 255, max_label_length: 63], opts)
+    max_length = opts[:max_length]
+    max_label_length = opts[:max_label_length]
+
+    if max_length not in 4..255 do
+      raise ArgumentError, ":max_length must be between [4, 255], got: #{max_length}"
+    end
+
+    if max_label_length not in 1..63 do
+      raise ArgumentError, ":max_label_length must be between [1, 63], got: #{max_label_length}"
+    end
+
+    opts
+  end
 end
