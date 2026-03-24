@@ -10,7 +10,7 @@ Additional strategies for `StreamData`. The goal of this library is to reach fea
   - [x] `floats`
     - [x] `exclude_min` and `exclude_max` options.
   - [x] `decimal`
-  - [ ] `from_regex`
+  - [x] `from_regex`
   - [ ] `emails`: Requires `domains`
   - [ ] `domains`: Requires `from_regex`
   - [ ] `urls`: Requires `domains`

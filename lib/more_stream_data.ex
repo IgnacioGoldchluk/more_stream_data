@@ -9,6 +9,8 @@ defmodule MoreStreamData do
 
   require Decimal
 
+  alias MoreStreamData.RegexGen
+
   @doc """
   Generates an IPv4 or IPv6 address as a string
 
@@ -513,4 +515,17 @@ defmodule MoreStreamData do
       end)
     end
   end
+
+  @doc """
+  Generates valid strings from a given regex.
+
+  The following features are currently unsupported:
+  - Lookarounds (lookahead and lookbehind)
+  - Atomic groups
+  - Backreferences
+  - `\\b` word boundary
+  - Modifiers
+  """
+  @spec from_regex(Regex.t() | String.t()) :: String.t()
+  def from_regex(regex), do: RegexGen.Strategy.from_regex(regex)
 end
