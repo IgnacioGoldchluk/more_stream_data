@@ -370,13 +370,36 @@ defmodule MoreStreamDataTest do
     end
   end
 
+  describe "email/0" do
+    property "generates valid emails" do
+      check all email <- email() do
+        assert String.length(email) <= 254
+        assert [local, domain] = String.split(email, "@")
+        assert String.length(local) <= 64
+        refute String.starts_with?(local, ".")
+        refute String.ends_with?(local, ".")
+        refute Regex.match?(~r/\.{2,}/, local)
+        assert String.contains?(domain, ".")
+      end
+    end
+
+    property "generates with specified domains" do
+      domains = ["outlook.com", "gmail.com"]
+
+      check all email <- email(domains: StreamData.member_of(domains)) do
+        [_local, domain] = String.split(email, "@")
+        assert Enum.member?(domains, domain)
+      end
+    end
+  end
+
   common_regexes = [
     # Decimal numbers
     ~r/^-?\d*(\.\d+)?$/,
     # Decimal + integer + fration
     ~r/[-]?[0-9]+[,.]?[0-9]*([\/][0-9]+[,.]?[0-9]*)*/,
     # Simplified and wrong email
-    ~r/^([a-zA-Z0-9._%-]{1,64}@[a-zA-Z0-9.-]{1,249}\.[a-zA-Z]{2,6})*$/,
+    ~r/[A-Za-z0-9]+([._%+-]?[A-Za-z0-9]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+/,
     # Phone numbers. Not correct because you can have mismatched parentheses
     ~r/^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}$/,
     # US Postal Code

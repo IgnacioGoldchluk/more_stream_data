@@ -10,7 +10,7 @@ Additional strategies for `StreamData`. The goal of this library is to reach fea
   - [x] `floats`
     - [x] `exclude_min` and `exclude_max` options.
   - [x] `decimal`
-  - [x] `from_regex`
+  - [x] `from_regex`: A bit slow but works
     - [ ] `\b` word boundary
     - [ ] `\v` vertica line meta character
     - [ ] Non-printable characters
@@ -29,9 +29,9 @@ Additional strategies for `StreamData`. The goal of this library is to reach fea
       - [ ] Multiline `/m`
       - [ ] Firstline `/f`
       - [x] Ungreedy `/U`. Not actually supported but redundant for string generation.
-  - [ ] `emails`: Requires `domains`
-  - [x] `domains`: A bit slow
-  - [ ] `urls`: Requires `domains`
+  - [x] `emails`
+  - [x] `domains`
+  - [x] `urls`
   - [x] `datetime`
   - [x] `time`
   - [x] `timezone`

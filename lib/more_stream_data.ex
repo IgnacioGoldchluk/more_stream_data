@@ -586,7 +586,7 @@ defmodule MoreStreamData do
   end
 
   @doc """
-  Generates valid http/https URLs according to [RFC-3986](https://www.rfc-editor.org/rfc/rfc3986.html)
+  Generates valid `http/https` URLs according to [RFC-3986](https://www.rfc-editor.org/rfc/rfc3986.html)
   """
   @spec url() :: StreamData.t(String.t())
   def url do
@@ -619,4 +619,39 @@ defmodule MoreStreamData do
 
   defp ascii_printable, do: Enum.filter(0..255, fn char -> String.printable?(<<char>>) end)
   defp blank, do: StreamData.constant("")
+
+  @doc """
+  Generates valid email addresses. The addresses are limited to ASCII characters
+
+  ## Options
+
+    - `:domains` - (`StreamData.t(String.t())`) strategy that generates domains. If not
+    provided then `domains/1` is used.
+  """
+  @spec email(Keyword.t()) :: StreamData.t(String.t())
+  def email(opts \\ []) do
+    email_chars()
+    |> StreamData.string(min_length: 1, max_length: 64)
+    |> StreamData.bind_filter(fn local_non_validated ->
+      local = String.trim(local_non_validated, ".") |> String.replace(~r/\.{2,}/, ".")
+
+      if local == "" do
+        :skip
+      else
+        # Ensure there is at least one dot in the email. Although "john@com" is technically valid,
+        # it is not practically valid, and we always want "john@${a}.${b}"
+        gen =
+          opts
+          |> Keyword.get_lazy(:domains, fn -> domain(max_length: 253 - String.length(local)) end)
+          |> StreamData.filter(fn domain -> String.contains?(domain, ".") end)
+          |> StreamData.bind(fn domain -> StreamData.constant("#{local}@#{domain}") end)
+
+        {:cont, gen}
+      end
+    end)
+  end
+
+  defp email_chars do
+    ~c"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'*+-/=^_`{|}~."
+  end
 end
