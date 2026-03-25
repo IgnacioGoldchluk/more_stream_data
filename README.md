@@ -1,5 +1,6 @@
 [![CI](https://github.com/IgnacioGoldchluk/more_stream_data/actions/workflows/ci.yml/badge.svg)](https://github.com/IgnacioGoldchluk/more_stream_data/actions/workflows/ci.yml)
-[![License](https://img.shields.io/hexpm/l/more_stream_data.svg)](https://github.com/IgnacioGoldchluk/more_stream_data/blob/main/LICENSE.md)
+[![License](https://img.shields.io/hexpm/l/more_stream_data
+)](https://github.com/IgnacioGoldchluk/more_stream_data/blob/main/LICENSE.md)
 [![Version](https://img.shields.io/hexpm/v/more_stream_data.svg)](https://hex.pm/packages/more_stream_data)
 [![Docs](https://img.shields.io/badge/documentation-gray.svg)](https://hexdocs.pm/more_stream_data)
 
