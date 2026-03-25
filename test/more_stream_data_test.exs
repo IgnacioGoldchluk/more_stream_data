@@ -393,37 +393,41 @@ defmodule MoreStreamDataTest do
     end
   end
 
-  common_regexes = [
-    # Decimal numbers
-    ~r/^-?\d*(\.\d+)?$/,
-    # Decimal + integer + fration
-    ~r/[-]?[0-9]+[,.]?[0-9]*([\/][0-9]+[,.]?[0-9]*)*/,
-    # Simplified and wrong email
-    ~r/[A-Za-z0-9]+([._%+-]?[A-Za-z0-9]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+/,
-    # Phone numbers. Not correct because you can have mismatched parentheses
-    ~r/^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}$/,
-    # US Postal Code
-    ~r/^\d{5}([\-]?\d{4})?$/,
-    # Hex color
-    ~r/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/,
-    # Username
-    ~r/^[a-z0-9_-]{3,16}$/,
-    # IPv4
-    ~r/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/,
-    # URL, not entirely correct since it's missing a \b
-    ~r/(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}([-a-zA-Z0-9@:%_\+.~#?&\/=]*)/,
-    # Time format
-    ~r/(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)/,
-    # Slug
-    ~r/^[a-z0-9]+(?:-[a-z0-9]+)*$/
-  ]
+  describe "from_regex/1" do
+    common_regexes = [
+      # Decimal numbers
+      ~r/^-?\d*(\.\d+)?$/,
+      # Decimal + integer + fration
+      ~r/[-]?[0-9]+[,.]?[0-9]*([\/][0-9]+[,.]?[0-9]*)*/,
+      # Simplified and wrong email
+      ~r/[A-Za-z0-9]+([._%+-]?[A-Za-z0-9]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+/,
+      # Phone numbers. Not correct because you can have mismatched parentheses
+      ~r/^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}$/,
+      # US Postal Code
+      ~r/^\d{5}([\-]?\d{4})?$/,
+      # Hex color
+      ~r/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/,
+      # Username
+      ~r/^[a-z0-9_-]{3,16}$/,
+      # IPv4
+      ~r/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/,
+      # URL, not entirely correct since it's missing a \b
+      ~r/(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}([-a-zA-Z0-9@:%_\+.~#?&\/=]*)/,
+      # Time format
+      ~r/(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)/,
+      # Another time format
+      ~r/(1[0-2]|0[1-9])(:[0-5]\d){2} (A|P)M/,
+      # Slug
+      ~r/^[a-z0-9]+(?:-[a-z0-9]+)*$/
+    ]
 
-  for regex <- common_regexes do
-    property "generates valid cases for #{regex.source}" do
-      regex = unquote(Macro.escape(regex))
+    for regex <- common_regexes do
+      property "generates valid cases for #{regex.source}" do
+        regex = unquote(Macro.escape(regex))
 
-      check all str <- from_regex(regex) do
-        assert Regex.match?(regex, str)
+        check all str <- from_regex(regex) do
+          assert Regex.match?(regex, str)
+        end
       end
     end
   end

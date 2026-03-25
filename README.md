@@ -13,7 +13,7 @@ Additional strategies for `StreamData`. The goal of this library is to reach fea
   - [x] `from_regex`: A bit slow but works
     - [ ] `\b` word boundary
     - [x] `\v` vertica line meta character
-    - [ ] Non-printable characters
+    - [x] Non-printable characters (automatically supported with `\x`)
     - [x] `xHH` for hex characters
     - [x] `x{HHH...}` for hex characters
     - [ ] Atomic groups
