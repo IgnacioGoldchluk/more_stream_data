@@ -42,6 +42,14 @@ defmodule MoreStreamData.RegexGen.Strategy do
   defp from_ast({:meta_sequence, :space}), do: StreamData.member_of(spaces()) |> to_str()
   defp from_ast({:meta_sequence, :non_word}), do: StreamData.member_of(@non_word) |> to_str()
 
+  defp from_ast({:meta_sequence, :vertical_space}) do
+    StreamData.member_of(verticals()) |> to_str()
+  end
+
+  defp from_ast({:meta_sequence, :non_vertical_space}) do
+    StreamData.codepoint(:ascii) |> StreamData.filter(&(&1 not in verticals())) |> to_str()
+  end
+
   defp from_ast({:meta_sequence, :non_digit}) do
     StreamData.codepoint(:ascii) |> StreamData.filter(&(&1 not in digit())) |> to_str()
   end
@@ -87,6 +95,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
 
   defp newlines, do: MapSet.new([?\n, ?\r])
   defp spaces, do: MapSet.new([?\r, ?\n, ?\t, ?\f, ?\v, 32])
+  defp verticals, do: MapSet.new([?\n, ?\v, ?\r, ?\f])
   defp digit, do: MapSet.new(?0..?9)
 
   defp to_str(stream), do: StreamData.map(stream, fn char -> <<char>> end)

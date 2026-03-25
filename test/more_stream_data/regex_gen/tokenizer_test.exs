@@ -331,10 +331,12 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
     end
 
     test "are tokenized as literals with their ASCII value" do
-      pattern = ~r/\v\t\a[\0\r\n\f\c\e]/
+      pattern = ~r/\v\V\t\a[\0\r\n\f\c\e]/
 
       expected = [
-        {:literal, ?\v},
+        {:meta_sequence, :vertical_space},
+        :concat,
+        {:meta_sequence, :non_vertical_space},
         :concat,
         {:literal, ?\t},
         :concat,

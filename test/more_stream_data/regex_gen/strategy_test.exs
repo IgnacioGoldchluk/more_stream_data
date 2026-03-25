@@ -158,6 +158,19 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
   end
 
   describe "meta sequences" do
+    test ":vertical_space and :non_vertical_space generate from line breaks" do
+      samples = Strategy.from_regex("\v\V") |> Enum.take(10)
+
+      verticals = [?\n, ?\v, ?\r, ?\f]
+
+      samples
+      |> Enum.map(&to_charlist/1)
+      |> Enum.each(fn [vertical, non_vertical] ->
+        assert Enum.member?(verticals, vertical)
+        refute Enum.member?(verticals, non_vertical)
+      end)
+    end
+
     test "blank only generates whitespace" do
       x = Strategy.from_regex("\\h{1,20}") |> Enum.take(20)
 

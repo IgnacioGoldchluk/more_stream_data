@@ -4,7 +4,7 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   import MoreStreamData.RegexGen.Tokenizer.Tokens
 
   @quantifiers ~c"*+?"
-  @meta_sequences ~c"wWdDsShH"
+  @meta_sequences ~c"wWdDsShHvV"
   @special_symbols ~c"[]{}()|.^$\\-" ++ @quantifiers
 
   # Symbols that have a different value when preceded by "\"
@@ -24,7 +24,16 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   @type literal :: {:literal, char()}
   @type meta_sequence ::
           {:meta_sequence,
-           :word | :non_word | :digit | :non_digit | :space | :non_space | :blank | :non_blank}
+           :word
+           | :non_word
+           | :digit
+           | :non_digit
+           | :space
+           | :non_space
+           | :blank
+           | :non_blank
+           | :vertical_space
+           | :non_vertical_space}
 
   @type special_quantifier :: :star | :plus | :question
   @type range_quantifier :: {non_neg_integer(), non_neg_integer()}
@@ -232,6 +241,8 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   defp to_meta_sequence(?S), do: {:meta_sequence, :non_space}
   defp to_meta_sequence(?h), do: {:meta_sequence, :blank}
   defp to_meta_sequence(?H), do: {:meta_sequence, :non_blank}
+  defp to_meta_sequence(?v), do: {:meta_sequence, :vertical_space}
+  defp to_meta_sequence(?V), do: {:meta_sequence, :non_vertical_space}
 
   @spec repetitions(String.t()) :: nil | {String.t(), quantifier()}
   def repetitions(quantifier) when is_binary(quantifier) do
