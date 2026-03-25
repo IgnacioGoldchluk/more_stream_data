@@ -156,6 +156,18 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
     tokenize(rest, [to_meta_sequence(seq) | acc])
   end
 
+  defp tokenize(<<?\\, ?x, ?{, rest::binary>>, acc) do
+    # Consume until we hit a `}` and convert to binary
+    {hex_digits, rest} = consume_hex([], rest)
+    {value, ""} = Integer.parse(hex_digits, 16)
+    tokenize(rest, [{:literal, value} | acc])
+  end
+
+  defp tokenize(<<?\\, ?x, d1, d2, rest::binary>>, acc) do
+    {hex, ""} = Integer.parse(<<d1, d2>>, 16)
+    tokenize(rest, [{:literal, hex} | acc])
+  end
+
   defp tokenize(<<?\\, char, rest::binary>>, acc) do
     cond do
       Map.has_key?(@escaped_symbols, char) -> @escaped_symbols[char]
@@ -309,11 +321,6 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   defp can_start?(:any_character), do: true
   defp can_start?(_), do: false
 
-  @doc """
-  Valid meta sequences identifiers
-  """
-  @spec meta_sequences() :: list(atom())
-  def meta_sequences do
-    [:word, :non_word, :digit, :non_digit, :space, :non_space, :blank, :non_blank]
-  end
+  defp consume_hex(acc, <<?}, rest::binary>>), do: {Enum.reverse(acc) |> to_string(), rest}
+  defp consume_hex(acc, <<d, rest::binary>>), do: consume_hex([d | acc], rest)
 end

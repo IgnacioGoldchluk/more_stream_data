@@ -221,6 +221,26 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
   end
 
   describe "special characters" do
+    test "\\x is parsed as literal hex" do
+      pattern = ~r/ab\x123\x{F}\x{Fa}/
+
+      expected = [
+        {:literal, ?a},
+        :concat,
+        {:literal, ?b},
+        :concat,
+        {:literal, 0x12},
+        :concat,
+        {:literal, ?3},
+        :concat,
+        {:literal, 0xF},
+        :concat,
+        {:literal, 0xFA}
+      ]
+
+      assert matches_tokens(pattern, expected)
+    end
+
     test ". and | are parsed as special characters" do
       pattern = ~r/a.|.b/
 
