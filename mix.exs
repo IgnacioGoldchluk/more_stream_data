@@ -1,24 +1,32 @@
 defmodule MoreStreamData.MixProject do
   use Mix.Project
 
+  @source_url "https://github.com/IgnacioGoldchluk/more_stream_data"
+  @version "0.1.0"
+
   def project do
     [
       app: :more_stream_data,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      # Docs
+      name: "MoreStreamData",
+      source_url: @source_url,
+      homepage_url: @source_url,
+      docs: docs(),
+      package: package(),
+      description: description()
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
       extra_applications: [:logger]
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
       {:stream_data, "~> 1.0"},
@@ -26,8 +34,26 @@ defmodule MoreStreamData.MixProject do
       {:tzdata, "~> 1.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false, warn_if_outdated: true}
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+    ]
+  end
+
+  defp docs do
+    [
+      main: "MoreStreamData",
+      extras: ["README.md", "CHANGELOG.md"]
+    ]
+  end
+
+  defp description do
+    "Additional generators for StreamData"
+  end
+
+  defp package do
+    [
+      licenses: ["MIT"],
+      maintainers: ["Ignacio Goldchluk"],
+      source_ref: "v#{@version}",
+      links: %{"GitHub" => @source_url}
     ]
   end
 end

@@ -1,7 +1,5 @@
 defmodule MoreStreamData.RegexGen.Strategy do
-  @moduledoc """
-  Strategy generator from AST to valid regex
-  """
+  @moduledoc false
 
   alias MoreStreamData.RegexGen.{AST, Tokenizer}
 

@@ -1,6 +1,6 @@
 defmodule MoreStreamData do
   @moduledoc """
-  Additional strategies for StreamData
+  Additional generators based on `StreamData`
   """
 
   import Bitwise
@@ -12,18 +12,28 @@ defmodule MoreStreamData do
   alias MoreStreamData.{Domain, RegexGen}
 
   @doc """
-  Generates an IPv4 or IPv6 address as a string
+  Generates IPv4 and IPv6 addresses as a string
 
   ## Options:
 
-    - `:version`. Either `4` or `6`. If unspecified it generates both values.
-    - `:network`. A string representing an IPv4 network or an IPv6 network, such
+    - `:version` - (`4 | 6`) generates IP adresses only of this version. Defaults to
+    generating both IPv4 and IPv6.
+    - `:network` - (`t:String.t/0`) A string representing an IPv4 network or an IPv6 network, such
     as `"123.111.0.0/16"` or `"1234:3210::/16`. If specified, only IPs in the given
     range are generated.
 
-    In case both `:version` and `:network` are specified, the version must match the network
+    In case both `:version` and `:network` are specified, the version must match the network.
+
+    In case `:network` is not set then IPs from [IPv4 Special Registry](https://www.iana.org/assignments/iana-ipv4-special-registry/iana-ipv4-special-registry.xhtml)
+    and/or [IPv6 Special Registry](https://www.iana.org/assignments/iana-ipv6-special-registry/iana-ipv6-special-registry.xhtml)
+    are generated alongside random IPs for better edge-case coverage.
+
+  ## Shrinking
+
+    Shrinks towards lower IP addresses. For example
+    `ip_address(network: "255.255.255.0/8")` shrinks towards `"255.255.255.0"`
   """
-  @spec ip_address(Keyword.t()) :: String.t()
+  @spec ip_address(Keyword.t()) :: StreamData.t(String.t())
   def ip_address(opts \\ []) when is_list(opts) do
     case {opts[:version], opts[:network]} do
       {v, nil} when v in [4, 6] ->
@@ -152,6 +162,7 @@ defmodule MoreStreamData do
   end
 
   defp special_ranges(6) do
+    # From https://www.iana.org/assignments/iana-ipv6-special-registry/iana-ipv6-special-registry.xhtml
     [
       "::1/128",
       "::/128",
@@ -177,14 +188,16 @@ defmodule MoreStreamData do
   end
 
   @doc """
-  Generates `Time.t` structures according to the given `options`.
-
-  Shrinks towards `~T[00:00:00]` or the specified `:min`.
+  Generates `t:Time.t/0` structs based on the provided `opts`.
 
   ## Options
 
-    - `:min` - (`Time.t()`) the minimum time to generate
-    - `:max` - (`Time.t()`) the maximum time to generate
+    - `:min` - (`t:Time.t/0`) the minimum time to generate (inclusive)
+    - `:max` - (`t:Time.t/0`) the maximum time to generate (inclusive)
+
+  ## Shrinking
+
+  Shrinks towards `~T[00:00:00]` or the specified `:min`.
   """
   @spec time(Keyword.t()) :: StreamData.t(Time.t())
   def time(opts \\ []) when is_list(opts) do
@@ -204,12 +217,18 @@ defmodule MoreStreamData do
   defp min_time, do: Time.new!(0, 0, 0, 0)
 
   @doc """
-  Same as `StreamData.integer/1` but also accepts a single end.
+  Same as `StreamData.integer/1` but also accepts a single end instead of
+  a range.
 
   ## Options
 
-    - `:min` - (`integer()`) the minimum inclusive value
-    - `:max` - (`integer()`) the maximum inclusive value
+    - `:min` - (`t:integer/0`) the minimum inclusive value
+    - `:max` - (`t:integer/0`) the maximum inclusive value
+
+  ## Shrinking
+
+  If only one of `:min`, `:max` is specified it shrinks toward the specified limit. In any
+  other case it behaves as `StreamData.integer/1`
   """
   @spec more_integer(Keyword.t() | Range.t()) :: StreamData.t(integer())
   def more_integer(%Range{} = range), do: StreamData.integer(range)
@@ -224,6 +243,9 @@ defmodule MoreStreamData do
     end
   end
 
+  @doc """
+  Same as `StreamData.integer/0`
+  """
   def more_integer, do: more_integer(Keyword.new())
 
   @doc """
@@ -231,10 +253,15 @@ defmodule MoreStreamData do
 
   ## Options
 
-    - `:exclude_min?` - (`boolean()`) whether to exclude the min value if set.
+    - `:exclude_min?` - (`t:boolean/0`) whether to exclude the min value if set.
     Defaults to `false`
-    - `:exclude_max?` - (`boolean()`) whether to exclude the max value if set.
+    - `:exclude_max?` - (`t:boolean/0`) whether to exclude the max value if set.
     Defaults to `false`
+
+  ## Shrinking
+
+  Same as `StreamData.float/1` since the additional options don't modify the underlying
+  generator
   """
   @spec more_float(Keyword.t()) :: StreamData.t(float())
   def more_float(opts \\ []) when is_list(opts) do
@@ -259,20 +286,22 @@ defmodule MoreStreamData do
   end
 
   @doc """
-  Generates `Decimal.t()` values based on the given `opts`.
-
-  Shrinks towards `0` or the specified `min`
+  Generates `t:Decimal.t/0` values based on the given `opts`.
 
   ## Options
 
-    - `:min` - (`Decimal.t()`) the minimum value to generate
-    - `:max` - (`Decimal.t()`) the maximum value to generate
-    - `:precision` - (`pos_integer()`) number of decimal places to consider
-    - `:allow_nan?` - (`boolean() | nil()`) whether to allow `"NaN"`. If unspecified,
-    `"NaN"` is allowed unless both `min` and `max` are specified.
-    - `:allow_infinity?` - (`boolean() | nil()`) whether to allow `"±Infinity"`. If unspecified,
-    `"±Infinity"` is allowed based on `min` and `max`. If set to `true`, `"±Infinity"` is
+    - `:min` - (`t:Decimal.t/0`) the minimum value to generate (inclusive)
+    - `:max` - (`t:Decimal.t/0`) the maximum value to generate (inclusive)
+    - `:precision` - (`t:pos_integer/0`) maximum number of decimal places
+    - `:allow_nan?` - (`boolean() | nil`) whether to allow `"NaN"`. If `nil`, then
+    `"NaN"` is allowed unless both `:min` and `:max` are specified.
+    - `:allow_infinity?` - (`boolean() | nil()`) whether to allow `"±Infinity"`. If `nil`,
+    `"±Infinity"` is allowed based on `:min` and `:max`. If set to `true`, `"±Infinity"` is
     generated even if `:min` and `:max` are specified.
+
+  ## Shrinking
+
+  Shrinks towards `Decimal.new(0)` or `:min` if specified.
   """
   @spec decimal(Keyword.t()) :: StreamData.t(Decimal.t())
   def decimal(opts \\ []) when is_list(opts) do
@@ -350,7 +379,12 @@ defmodule MoreStreamData do
   defp adjust_exp(exp), do: :math.log(exp) |> trunc()
 
   @doc """
-  Generates an [IANA Timezone](https://www.iana.org/time-zones)
+  Generates an [IANA Timezone](https://www.iana.org/time-zones).
+
+  Equivalent to
+  ```ex
+  StreamData.member_of(Tzdata.zone_list())
+  ```
   """
   @spec timezone :: StreamData.t(Calendar.time_zone())
   def timezone do
@@ -358,20 +392,25 @@ defmodule MoreStreamData do
   end
 
   @doc """
-  Generates a `Duration.t()` struct.
+  Generates a `t:Duration.t/0` struct.
 
   Shrinks towards all values going to 0. Keep in mind the values in
   `Duration.t()` structs can be negative. Therefore calling
   `duration(min: Duration.new!(day: 1))` can generate `Duration.new!(day: -20)`
 
   ## Options
-    - `:min` - (`Duration.t() | Keyword.t()`) the minimum duration to generate.
-    - `:max` - (`Duration.t() | Keyword.t()`) the maximum duration to generate.
+    - `:min` - (`t:Duration.t/0` `|` `t:Keyword.t/0`) the minimum duration to generate.
+    - `:max` - (`t:Duration.t/0` `|` `t:Keyword.t/0`) the maximum duration to generate.
 
-  Keep in mind that same as `Duration.t()`, units are collapsed into months, seconds
-  and microseconds. Therefore passing `min: [week: 5]` can set any value between
-  `:microsecond` and `:week`, but `:year` and `:month` are always set to 0. This is
-  because there is no conversion from `week` to `month`
+  Keep in mind that units are collapsed into months, seconds and microseconds.
+  Therefore passing `min: [week: 5]` can set any value between `:microsecond` and `:week`,
+  but `:year` and `:month` are always set to 0. This is because there is no conversion
+  from `week` to `month`.
+
+  ## Shrinking
+  Shrinks towards zero values. Keep in mind the values in `t:Duration.t/0` structs
+  can be negative. Therefore calling `duration(min: Duration.new!(day: 1))`
+  can generate `Duration.new!(day: -20)`
   """
   @spec duration(Keyword.t()) :: StreamData.t(Duration.t())
   def duration(opts \\ []) when is_list(opts) do
@@ -456,24 +495,26 @@ defmodule MoreStreamData do
   end
 
   @doc """
-  Generates a `DateTime.t()` struct
-
-  Shrinks according to the provided options:
-    - `:min` and/or `:max` provided: towards `:min`
-    - `:max` provided: towards `:max`
-    - `:date` and/or `:time` provided: towards the given
-    - No range provided: towards `DateTime.utc_now/0`
+  Generates `t:DateTime.t/0` structs.
 
   ## Options
 
-    - `:min` - (`DateTime.t()`) if present, only datetimes after this value are generated
-    - `:max` - (`DateTime.t()`) if present, only datetimes before this value are generated
-    - `:timezone` - (`StreamData.t(String.t())`) timezones to generate datetimes from. If
-    not present defaults to drawing values from `timezone/0`
+    - `:min` - (`t:DateTime.t/0`) if present, only datetimes after this value are generated
+    - `:max` - (`t:DateTime.t/0`) if present, only datetimes before this value are generated
+    - `:timezone` - (`StreamData.t(String.t())`) timezones generator. If not provided defaults
+    to `timezone/0`
     - `:date` - (`StreamData.t(Date.t())`) if present, uses this strategy for the date part
     - `:time` - (`StreamData.t(Time.t())`) if present, uses this strategy for the time part
 
   If `:min` and/or `:max` are provided then `:date`, `:time` and `:timezone` are ignored
+
+  ## Shrinking
+
+  Shrinks according to the provided options:
+  - `:min` and/or `:max` provided -> towards `:min`
+  - `:max` provided -> towards `:max`
+  - `:date` and/or `:time` provided -> towards the combination of the generators
+  - No range provided: towards `DateTime.utc_now/0`
   """
   @spec datetime(Keyword.t()) :: StreamData.t(DateTime.t())
   def datetime(opts \\ []) when is_list(opts) do
@@ -520,12 +561,13 @@ defmodule MoreStreamData do
   Generates valid strings from a given regex.
 
   The following features are currently unsupported:
-  - Lookarounds (lookahead and lookbehind)
+  - Lookarounds
   - Atomic groups
   - Backreferences
-  - `\\b` word boundary
-  - Modifiers
+  - `\\b`
+  - [Modifiers](https://hexdocs.pm/elixir/Regex.html#module-modifiers)
 
+  ## Shrinking
   Shrinks towards lower ASCII characters and shorter expressions. For example
   `from_regex(~r/[A-Z]+_[a-z]+/)` shrinks towards `A_a`
   """
@@ -535,12 +577,20 @@ defmodule MoreStreamData do
   @doc """
   Generates valid domains according to [RFC-1035](https://datatracker.ietf.org/doc/html/rfc1035)
 
+  Top Level Domains are sampled from the [IANA List](https://data.iana.org/TLD/tlds-alpha-by-domain.txt), excluding
+  punycode (`"xn--.*"`) domains
+
   ## Options
 
-    - `:max_length` - (`pos_integer()`) the maximum length of the entire domain.
-    Must be `4 <= :max_length <= 255` as per RFC-1035. Defaults to 255.
-    - `:max_label_length` - (`pos_integer()`) the maximum length of each label.
-    Must be `1 <= :max_label_length <= 63` as per RFC-1035. Defaults to 63.
+    - `:max_length` - (`t:pos_integer/0`) the maximum length of the entire domain.
+    Must be `4 <= :max_length <= 255` as per RFC-1035. Defaults to `255`.
+    - `:max_label_length` - (`t:pos_integer/0`) the maximum length of each label.
+    Must be `1 <= :max_label_length <= 63` as per RFC-1035. Defaults to `63`.
+
+  ## Shrinking
+
+  Shrinks towards shorter and fewer labels, and to `"com"` top level domain, if allowed by
+  `:max_length`
   """
   @spec domain(Keyword.t()) :: StreamData.t(String.t())
   def domain(opts \\ []) do
@@ -560,12 +610,7 @@ defmodule MoreStreamData do
   defp take_labels(labels, max_length, tld) do
     Enum.reduce_while(labels, tld, fn label, acc ->
       new_acc = label <> "." <> acc
-
-      if String.length(new_acc) > max_length do
-        {:halt, acc}
-      else
-        {:cont, new_acc}
-      end
+      if(String.length(new_acc) > max_length, do: {:halt, acc}, else: {:cont, new_acc})
     end)
   end
 
@@ -587,6 +632,8 @@ defmodule MoreStreamData do
 
   @doc """
   Generates valid `http/https` URLs according to [RFC-3986](https://www.rfc-editor.org/rfc/rfc3986.html)
+
+  URLs contain ASCII characters only
   """
   @spec url() :: StreamData.t(String.t())
   def url do
@@ -621,12 +668,22 @@ defmodule MoreStreamData do
   defp blank, do: StreamData.constant("")
 
   @doc """
-  Generates valid email addresses. The addresses are limited to ASCII characters
+  Generates valid email addresses.
+
+  Does not follow RFC-5322. Instead, it generates emails considered valid by the most
+  common internet providers. Some differences:
+  - Addresses are limited to ASCII characters
+  - No double quotes (`"`) allowed
+  - No single domain such as `john@doe`
+  - No IP address as domain
 
   ## Options
 
     - `:domains` - (`StreamData.t(String.t())`) strategy that generates domains. If not
-    provided then `domains/1` is used.
+    provided then `domain/1` is used.
+
+  ## Shrinking
+  Shrinks towards shorter local parts. The domain part follows `:domains` behaviour.
   """
   @spec email(Keyword.t()) :: StreamData.t(String.t())
   def email(opts \\ []) do
