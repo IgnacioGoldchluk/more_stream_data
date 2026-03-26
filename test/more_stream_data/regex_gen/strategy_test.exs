@@ -15,14 +15,15 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     check all opt1 <- StreamData.string(:alphanumeric, min_length: 1),
               opt2 <- StreamData.string(:alphanumeric, min_length: 2),
               opt3 <- StreamData.string(:alphanumeric, min_length: 3),
-              str <- Strategy.from_regex("#{opt1}|#{opt2}|#{opt3}") do
+              str <- Strategy.from_regex("^#{opt1}|#{opt2}|#{opt3}$") do
       assert Enum.any?([opt1, opt2, opt3], fn opt -> opt == str end)
     end
   end
 
   property "range with exact length generates strings of the specified length" do
     check all len <- StreamData.positive_integer(),
-              str <- Strategy.from_regex("\\d{#{len}}") do
+              str <- Strategy.from_regex("^\\d{#{len}}$") do
+      assert String.length(str) == len
       assert String.to_integer(str) |> is_number()
     end
   end
@@ -36,20 +37,20 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
 
   describe "special quantifiers" do
     property "'+' generates regex of length >= 1" do
-      check all str <- Strategy.from_regex("\\W+") do
+      check all str <- Strategy.from_regex("^\\W+$") do
         assert String.length(str) >= 1
       end
     end
 
     property "'?' generates regex of length <= 1" do
-      check all str <- Strategy.from_regex("\\s?") do
+      check all str <- Strategy.from_regex("^\\s?$") do
         assert String.length(str) <= 1
       end
     end
   end
 
   property "'.' generates anything except for line breaks" do
-    check all str <- Strategy.from_regex(".+") do
+    check all str <- Strategy.from_regex("^.+$") do
       str
       |> to_charlist()
       |> Enum.each(fn c -> refute Enum.member?([?\n, ?\r], c) end)
@@ -59,7 +60,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
   describe "character class" do
     property "generates from literals" do
       check all literals <- StreamData.string(:alphanumeric, min_length: 1),
-                str <- Strategy.from_regex("[#{literals}]+") do
+                str <- Strategy.from_regex("^[#{literals}]+$") do
         codepoints = String.codepoints(literals)
 
         assert String.length(str) >= 1
@@ -71,7 +72,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     end
 
     property "negative character class rejects elements" do
-      check all str <- Strategy.from_regex("[^a-zA-Z]") do
+      check all str <- Strategy.from_regex("^[^a-zA-Z]$") do
         str
         |> to_charlist()
         |> Enum.each(fn char ->
@@ -81,7 +82,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     end
 
     test "negative '\D' generates digits" do
-      [str] = Strategy.from_regex(~r/[^\D]{100}/) |> Enum.take(1)
+      [str] = Strategy.from_regex(~r/^[^\D]{100}$/) |> Enum.take(1)
       assert String.length(str) == 100
 
       digits = Enum.to_list(?0..?9)
@@ -92,7 +93,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     end
 
     test "negative '\d' generates everything except digits" do
-      [str] = Strategy.from_regex(~r/[^\d]{100}/) |> Enum.take(1)
+      [str] = Strategy.from_regex(~r/^[^\d]{100}$/) |> Enum.take(1)
       assert String.length(str) == 100
 
       digits = Enum.to_list(?0..?9)
@@ -103,7 +104,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     end
 
     test "negative literals" do
-      [str] = Strategy.from_regex(~r/[^abcdefghijklmnopqrstuvwxyz]{100}/) |> Enum.take(1)
+      [str] = Strategy.from_regex(~r/^[^abcdefghijklmnopqrstuvwxyz]{100}$/) |> Enum.take(1)
       assert String.length(str) == 100
       invalid_range = Enum.to_list(?a..?z)
 
@@ -113,7 +114,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     end
 
     test "negative spaces and blank does not contains spaces" do
-      [str] = Strategy.from_regex(~r/[^\s\h]{100}/) |> Enum.take(1)
+      [str] = Strategy.from_regex(~r/^[^\s\h]{100}$/) |> Enum.take(1)
       assert String.length(str) == 100
 
       spaces = [?\r, ?\n, ?\t, ?\f, ?\v, 32]
@@ -124,7 +125,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     end
 
     test "negative non spaces and non blank only generates spaces and blank" do
-      [str] = Strategy.from_regex(~r/[^\S\H]{100}/) |> Enum.take(1)
+      [str] = Strategy.from_regex(~r/^[^\S\H]{100}$/) |> Enum.take(1)
 
       assert String.length(str) == 100
       spaces = [?\r, ?\n, ?\t, ?\f, ?\v, 32]
@@ -135,7 +136,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     end
 
     test "negative word generates non word" do
-      [str] = Strategy.from_regex(~r/[^\w]{100}/) |> Enum.take(1)
+      [str] = Strategy.from_regex(~r/^[^\w]{100}$/) |> Enum.take(1)
 
       words =
         Enum.concat([Enum.to_list(?a..?z), Enum.to_list(?A..?Z), Enum.to_list(?0..?9), [?_]])
@@ -146,7 +147,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     end
 
     test "negative non word generates  word" do
-      [str] = Strategy.from_regex(~r/[^\W]{100}/) |> Enum.take(1)
+      [str] = Strategy.from_regex(~r/^[^\W]{100}$/) |> Enum.take(1)
 
       words =
         Enum.concat([Enum.to_list(?a..?z), Enum.to_list(?A..?Z), Enum.to_list(?0..?9), [?_]])
@@ -159,7 +160,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
 
   describe "meta sequences" do
     test ":vertical_space and :non_vertical_space generate from line breaks" do
-      samples = Strategy.from_regex("\v\V") |> Enum.take(10)
+      samples = Strategy.from_regex("^\v\V$") |> Enum.take(10)
 
       verticals = [?\n, ?\v, ?\r, ?\f]
 
@@ -172,13 +173,13 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     end
 
     test "blank only generates whitespace" do
-      x = Strategy.from_regex("\\h{1,20}") |> Enum.take(20)
+      x = Strategy.from_regex("^\\h{1,20}$") |> Enum.take(20)
 
       Enum.each(x, fn str -> assert String.trim(str) |> String.length() == 0 end)
     end
 
     property ":non_digit does not generate digits" do
-      check all str <- Strategy.from_regex("\\D*") do
+      check all str <- Strategy.from_regex("^\\D*$") do
         str
         |> to_charlist()
         |> Enum.each(fn codepoint -> refute Enum.member?(?0..?9, codepoint) end)
@@ -186,7 +187,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     end
 
     property ":non_space does not generate spaces" do
-      check all str <- Strategy.from_regex("\\S*") do
+      check all str <- Strategy.from_regex("^\\S*$") do
         str
         |> to_charlist()
         |> Enum.each(fn codepoint ->
@@ -197,10 +198,26 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
   end
 
   property "concatenates special characters" do
-    check all str <- Strategy.from_regex("\\d[a-z]") do
+    check all str <- Strategy.from_regex("^\\d[a-z]$") do
       [c1, c2] = to_charlist(str)
       assert c1 in ?0..?9
       assert c2 in ?a..?z
+    end
+  end
+
+  describe "anchors" do
+    property "can generate additional text after regex if '$' is not specified" do
+      check all str <- Strategy.from_regex(~r/^asd/) do
+        assert String.starts_with?(str, "asd")
+        assert String.length(str) >= 3
+      end
+    end
+
+    property "can generate additional text before regex if '^' is not specified" do
+      check all str <- Strategy.from_regex(~r/asd$/) do
+        assert String.ends_with?(str, "asd")
+        assert String.length(str) >= 3
+      end
     end
   end
 end

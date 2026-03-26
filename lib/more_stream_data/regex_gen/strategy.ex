@@ -2,6 +2,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
   @moduledoc false
 
   alias MoreStreamData.RegexGen.{AST, Tokenizer}
+  alias MoreStreamData.Utils
 
   @word Enum.concat([Enum.to_list(?a..?z), Enum.to_list(?A..?Z), Enum.to_list(?0..?9), [?_]])
   @non_word 32..255
@@ -14,7 +15,9 @@ defmodule MoreStreamData.RegexGen.Strategy do
   """
   @spec from_regex(String.t() | Regex.t()) :: StreamData.t(String.t())
   def from_regex(regex) do
-    regex |> Tokenizer.tokenize!() |> AST.parse() |> from_ast()
+    {:ok, %{tokens: tokens, metadata: metadata}} = Tokenizer.tokenize(regex)
+
+    tokens |> AST.parse() |> from_ast() |> apply_caseless(regex) |> apply_anchors(metadata)
   end
 
   defp from_ast({:literal, value}), do: StreamData.constant(AST.stringify(value))
@@ -117,4 +120,31 @@ defmodule MoreStreamData.RegexGen.Strategy do
 
   @spec not_values(MapSet.t()) :: MapSet.t()
   defp not_values(other), do: MapSet.difference(all_values(), other)
+
+  # Modifiers and metadata
+  defp apply_caseless(regex_gen, regex) when is_binary(regex), do: regex_gen
+
+  defp apply_caseless(regex_gen, regex) do
+    if(:caseless in Regex.opts(regex), do: Utils.recase(regex_gen), else: regex_gen)
+  end
+
+  defp apply_anchors(regex_gen, metadata) do
+    regex_gen |> prepend_str(metadata) |> append_str(metadata)
+  end
+
+  defp prepend_str(regex_gen, %{anchor_start?: true}), do: regex_gen
+
+  defp prepend_str(regex_gen, _) do
+    StreamData.bind(regex_gen, fn str ->
+      StreamData.map(StreamData.string(:ascii), fn prefix -> prefix <> str end)
+    end)
+  end
+
+  defp append_str(regex_gen, %{anchor_end?: true}), do: regex_gen
+
+  defp append_str(regex_gen, _) do
+    StreamData.bind(regex_gen, fn str ->
+      StreamData.map(StreamData.string(:ascii), fn suffix -> str <> suffix end)
+    end)
+  end
 end

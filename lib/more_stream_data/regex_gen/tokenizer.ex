@@ -59,17 +59,6 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   @type tokenized :: %{tokens: [token()], metadata: metadata()}
 
   @doc """
-  Same as `tokenize/1` but raises in case of error
-  """
-  @spec tokenize!(String.t() | Regex.t()) :: [token()]
-  def tokenize!(regex) do
-    case tokenize(regex) do
-      {:ok, %{tokens: tokens}} -> tokens
-      {:error, reason, _parsed} -> raise reason
-    end
-  end
-
-  @doc """
   Tokenizes a regular expression. Returns a tuple with the tokenized result or
   an error tuple with the unparsed part
   """

@@ -394,13 +394,19 @@ defmodule MoreStreamDataTest do
   end
 
   describe "from_regex/1" do
+    property "caseless option geneates case insensitive regex" do
+      check all str <- from_regex(~r/^qwertyasd$/i) do
+        assert String.downcase(str) == "qwertyasd"
+      end
+    end
+
     common_regexes = [
       # Decimal numbers
       ~r/^-?\d*(\.\d+)?$/,
       # Decimal + integer + fration
-      ~r/[-]?[0-9]+[,.]?[0-9]*([\/][0-9]+[,.]?[0-9]*)*/,
+      ~r/^[-]?[0-9]+[,.]?[0-9]*([\/][0-9]+[,.]?[0-9]*)*$/,
       # Simplified and wrong email
-      ~r/[A-Za-z0-9]+([._%+-]?[A-Za-z0-9]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+/,
+      ~r/^[A-Za-z0-9]+([._%+-]?[A-Za-z0-9]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/,
       # Phone numbers. Not correct because you can have mismatched parentheses
       ~r/^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}$/,
       # US Postal Code
@@ -412,11 +418,11 @@ defmodule MoreStreamDataTest do
       # IPv4
       ~r/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/,
       # URL, not entirely correct since it's missing a \b
-      ~r/(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}([-a-zA-Z0-9@:%_\+.~#?&\/=]*)/,
+      ~r/^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._+~#=]{2,256}\.[a-z]{2,6}([-a-zA-Z0-9@:%_+.~#?&\/=]*)$/,
       # Time format
-      ~r/(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)/,
+      ~r/^(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)$/,
       # Another time format
-      ~r/(1[0-2]|0[1-9])(:[0-5]\d){2} (A|P)M/,
+      ~r/^(1[0-2]|0[1-9])(:[0-5]\d){2} (A|P)M$/,
       # Slug
       ~r/^[a-z0-9]+(?:-[a-z0-9]+)*$/
     ]

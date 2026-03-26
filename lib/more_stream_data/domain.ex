@@ -20,13 +20,13 @@ defmodule MoreStreamData.Domain do
     |> StreamData.map(fn char -> <<char>> end)
   end
 
-  def label_gen(2), do: MoreStreamData.from_regex(~r/[a-zA-Z][a-zA-Z0-9]?/)
+  def label_gen(2), do: MoreStreamData.from_regex(~r/^[a-zA-Z][a-zA-Z0-9]?$/)
 
   def label_gen(max_label_length) when max_label_length > 2 do
     max_center = max_label_length - 2
 
     # Filter out reserved "XX--..." cases that might be generated accidentally
-    MoreStreamData.from_regex("[a-zA-Z]([a-zA-Z0-9-]{,#{max_center}}[a-zA-Z0-9])?")
+    MoreStreamData.from_regex("^[a-zA-Z]([a-zA-Z0-9-]{,#{max_center}}[a-zA-Z0-9])?$")
     |> StreamData.filter(fn value -> String.slice(value, 2..3) != "--" end)
   end
 
