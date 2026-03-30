@@ -225,15 +225,6 @@ defmodule MoreStreamDataTest do
     end
   end
 
-  describe "timezone/0" do
-    property "returns a valid timezone" do
-      check all timezone <- timezone() do
-        assert Tzdata.zone_exists?(timezone)
-        DateTime.shift_zone!(DateTime.utc_now(), timezone, Tzdata.TimeZoneDatabase)
-      end
-    end
-  end
-
   describe "duration/1" do
     property "unspecified min/max generates unbounded durations" do
       check all duration <- duration() do
@@ -301,14 +292,6 @@ defmodule MoreStreamDataTest do
 
       check all dt <- datetime(time: time(min: min_time)) do
         refute Time.before?(DateTime.to_time(dt), min_time)
-      end
-    end
-
-    property "generates datetimes in the specified timezones" do
-      tz = "America/Cuiaba"
-
-      check all dt <- datetime(timezone: StreamData.constant(tz)) do
-        assert dt.time_zone == tz
       end
     end
   end

@@ -31,7 +31,6 @@ defmodule MoreStreamData.MixProject do
     [
       {:stream_data, "~> 1.0"},
       {:decimal, "~> 2.3"},
-      {:tzdata, "~> 1.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false, warn_if_outdated: true}
     ]

@@ -67,6 +67,5 @@ The goal is to port [Python's Hypothesis](https://hypothesis.readthedocs.io/en/l
   - [x] `urls`
   - [x] `datetime`
   - [x] `time`
-  - [x] `timezone`
   - [x] `timedeltas`
   - [x] `ip_address`
