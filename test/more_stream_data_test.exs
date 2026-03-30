@@ -6,6 +6,16 @@ defmodule MoreStreamDataTest do
 
   import MoreStreamData
 
+  alias MoreStreamData.Protos.{
+    LevelOne,
+    LevelTwo,
+    LevelZero,
+    MessageWithOneOf,
+    Repeateds,
+    ScalarMessage,
+    User
+  }
+
   describe "ip_address/1" do
     test "mismatched version and network range raises" do
       assert_raise ArgumentError, fn ->
@@ -417,6 +427,83 @@ defmodule MoreStreamDataTest do
         check all str <- from_regex(regex) do
           assert Regex.match?(regex, str)
         end
+      end
+    end
+  end
+
+  describe "from_proto/1" do
+    property "generates scalars" do
+      check all msg <- from_proto(ScalarMessage) do
+        msg_map = Map.from_struct(msg)
+
+        msg
+        |> ScalarMessage.encode()
+        |> ScalarMessage.decode()
+        |> Map.from_struct()
+        |> Enum.each(fn {key, val} ->
+          # floating point gets truncated, do not check it
+          if key != :basic_float do
+            assert val == msg_map[key]
+          end
+        end)
+
+        assert is_integer(msg.basic_uint32)
+        assert msg.basic_uint32 in 0..(2 ** 32 - 1)
+        assert is_integer(msg.basic_uint64)
+        assert msg.basic_uint64 in 0..(2 ** 64 - 1)
+        assert is_integer(msg.basic_int32)
+        assert msg.basic_int32 in (-2 ** 31)..(2 ** 31 - 1)
+        assert is_integer(msg.basic_sint32)
+        assert msg.basic_sint32 in (-2 ** 31)..(2 ** 31 - 1)
+        assert is_integer(msg.basic_sint64)
+        assert msg.basic_sint64 in (-2 ** 63)..(2 ** 63 - 1)
+        assert is_integer(msg.basic_fixed32)
+        assert msg.basic_fixed32 in 0..(2 ** 32 - 1)
+        assert is_integer(msg.basic_fixed64)
+        assert msg.basic_fixed64 in 0..(2 ** 64 - 1)
+
+        assert is_binary(msg.basic_string)
+        assert is_boolean(msg.basic_boolean)
+        assert is_binary(msg.basic_bytes)
+        assert is_float(msg.basic_double)
+        assert is_float(msg.basic_float)
+        assert Enum.empty?(msg.__unknown_fields__)
+      end
+    end
+
+    property "repeated generates lists" do
+      check all msg <- from_proto(Repeateds) do
+        Enum.each(msg.people, fn p -> p in [:ALICE, :BOB] end)
+
+        Enum.each(msg.aliases, fn {k, v} ->
+          assert is_binary(k)
+          assert v in [:ALICE, :BOB]
+        end)
+
+        Enum.each(msg.users, fn %User{username: u, user_id: u_id} ->
+          assert is_binary(u)
+          assert is_integer(u_id)
+        end)
+      end
+    end
+
+    property "nested messages" do
+      check all msg <- from_proto(LevelTwo) do
+        assert msg == LevelTwo.encode(msg) |> LevelTwo.decode()
+
+        case msg do
+          %LevelTwo{nested2: %LevelOne{nested1: %LevelZero{msg: val}}} -> assert is_binary(val)
+          _ -> :ok
+        end
+      end
+    end
+
+    property "at most one of 'oneof' per group is set" do
+      check all msg <- from_proto(MessageWithOneOf) do
+        assert is_binary(msg.case_one)
+        assert is_binary(msg.case_two) or is_integer(msg.case_two)
+        assert is_integer(msg.msg_id)
+        assert Enum.empty?(msg.__unknown_fields__)
       end
     end
   end

@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+enum Person {
+    ALICE = 0;
+    BOB = 1;
+}
+
+message ScalarMessage {
+    uint32 basic_uint32 = 1;
+    uint64 basic_uint64 = 2;
+    int32 basic_int32 = 3;
+    int64 basic_int64 = 4;
+    string basic_string = 5;
+    sint32 basic_sint32 = 6;
+    sint64 basic_sint64 = 7;
+    fixed32 basic_fixed32 = 8;
+    fixed64 basic_fixed64 = 9;
+    double basic_double = 10;
+    float basic_float = 11;
+    bytes basic_bytes = 12;
+    bool basic_boolean = 13;
+}
+
+message User {
+    string username = 1;
+    int32 user_id = 2;
+}
+
+message Repeateds {
+    repeated Person people = 1;
+    map<string,Person> aliases = 2;
+    repeated User users = 3;
+}
+
+message LevelZero {
+    string msg = 1;
+}
+
+message LevelOne {
+    LevelZero nested1 = 1;
+}
+
+message LevelTwo {
+    LevelOne nested2 = 1;
+}
+
+message MessageWithOneOf {
+    uint32 msg_id = 1;
+    oneof case_one {
+        string name = 2;
+        string name2 = 3;
+    }
+
+    oneof case_two {
+        uint32 msg_one = 4;
+        string msg_two = 5;
+    }
+}

@@ -687,4 +687,12 @@ defmodule MoreStreamData do
   defp email_chars do
     ~c"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'*+-/=^_`{|}~."
   end
+
+  @doc """
+  Generates data from a protobuf module
+  """
+  @spec from_proto(module()) :: StreamData.t(struct())
+  def from_proto(module) when is_atom(module) do
+    MoreStreamData.Protobuf.from_proto(module)
+  end
 end
