@@ -10,7 +10,7 @@ Additional generators based on `StreamData`.
 
 ## Installation
 Add `more_stream_data` to your list of dependencies in `mix.exs`
-```ex
+```elixir
 def deps do
   [
     {:more_stream_data, "~> 0.1", only: :test}
@@ -21,7 +21,7 @@ end
 Refer to [StreamData](https://hexdocs.pm/stream_data/StreamData.html) documentation for usage.
 
 You can call additional generators directly in any testfile
-```ex
+```elixir
 defmodule MyTestMoule do
   use ExUnit.Case
   use ExUnitProperties
