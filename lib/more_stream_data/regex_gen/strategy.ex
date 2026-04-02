@@ -10,15 +10,23 @@ defmodule MoreStreamData.RegexGen.Strategy do
               String.printable?(<<char>>) and not Enum.member?(@word, char)
             end)
 
+  @whitespace ~c"\r\n\t\v\f\s"
+
   @doc """
   Generates values for the given regex
   """
   @spec from_regex(String.t() | Regex.t()) :: StreamData.t(String.t())
-  def from_regex(regex) do
-    {:ok, %{tokens: tokens, metadata: metadata}} = Tokenizer.tokenize(regex)
+  def from_regex(regex) when is_struct(regex, Regex) do
+    options = Regex.opts(regex)
+    source = Regex.source(regex)
+    pattern = if(:extended in options, do: remove_extended(source), else: source)
 
-    tokens |> AST.parse() |> from_ast() |> apply_caseless(regex) |> apply_anchors(metadata)
+    {:ok, %{tokens: tokens, metadata: metadata}} = Tokenizer.tokenize(pattern)
+
+    tokens |> AST.parse() |> from_ast() |> apply_caseless(options) |> apply_anchors(metadata)
   end
+
+  def from_regex(regex) when is_binary(regex), do: from_regex(Regex.compile!(regex))
 
   defp from_ast({:literal, value}), do: StreamData.constant(AST.stringify(value))
   defp from_ast({:union, {opt1, opt2}}), do: StreamData.one_of([from_ast(opt1), from_ast(opt2)])
@@ -92,7 +100,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
   end
 
   defp newlines, do: MapSet.new([?\n, ?\r])
-  defp spaces, do: MapSet.new([?\r, ?\n, ?\t, ?\f, ?\v, 32])
+  defp spaces, do: MapSet.new(@whitespace)
   defp verticals, do: MapSet.new([?\n, ?\v, ?\r, ?\f])
   defp digit, do: MapSet.new(?0..?9)
 
@@ -108,8 +116,8 @@ defmodule MoreStreamData.RegexGen.Strategy do
   defp all_values({:meta_sequence, :non_space}), do: not_values(spaces())
   defp all_values({:meta_sequence, :word}), do: MapSet.new(@word)
   defp all_values({:meta_sequence, :non_word}), do: MapSet.new(@non_word)
-  defp all_values({:meta_sequence, :blank}), do: MapSet.new([32])
-  defp all_values({:meta_sequence, :non_blank}), do: not_values(MapSet.new([32]))
+  defp all_values({:meta_sequence, :blank}), do: MapSet.new([?\s])
+  defp all_values({:meta_sequence, :non_blank}), do: not_values(MapSet.new([?\s]))
   defp all_values({:range, {low, high}}), do: MapSet.new(low..high)
   defp all_values({:literal, val}), do: MapSet.new([val])
 
@@ -119,10 +127,8 @@ defmodule MoreStreamData.RegexGen.Strategy do
   defp not_values(other), do: MapSet.difference(all_values(), other)
 
   # Modifiers and metadata
-  defp apply_caseless(regex_gen, regex) when is_binary(regex), do: regex_gen
-
-  defp apply_caseless(regex_gen, regex) do
-    if(:caseless in Regex.opts(regex), do: Utils.recase(regex_gen), else: regex_gen)
+  defp apply_caseless(regex_gen, opts) do
+    if(:caseless in opts, do: Utils.recase(regex_gen), else: regex_gen)
   end
 
   defp apply_anchors(regex_gen, metadata) do
@@ -144,4 +150,52 @@ defmodule MoreStreamData.RegexGen.Strategy do
       StreamData.map(StreamData.string(:ascii), fn suffix -> str <> suffix end)
     end)
   end
+
+  def remove_extended(pattern) when is_binary(pattern) do
+    strip_ext(pattern, nil, <<>>)
+  end
+
+  defp strip_ext(<<>>, _state, acc), do: acc
+
+  # Newline found
+  defp strip_ext(<<?\n, rest::binary>>, state, acc) do
+    next_state = if(state == :class, do: :class, else: nil)
+    strip_ext(rest, next_state, acc)
+  end
+
+  # Literals "[" and "#" add them again
+  defp strip_ext(<<?\\, ?[, rest::binary>>, nil, acc), do: strip_ext(rest, nil, acc <> "\\[")
+  # '#' we can add directly since it does not have a special meaning in regular regex
+  defp strip_ext(<<?\\, ?#, rest::binary>>, nil, acc), do: strip_ext(rest, nil, acc <> "#")
+
+  # Special case for (?#), will be deleted later by the tokenizer
+  defp strip_ext("(?#" <> rest, nil, acc), do: strip_ext(rest, nil, acc <> "(?#")
+
+  # Enter and exit class
+  defp strip_ext(<<?[, rest::binary>>, nil, acc), do: strip_ext(rest, :class, acc <> "[")
+  defp strip_ext(<<?], rest::binary>>, :class, acc), do: strip_ext(rest, nil, acc <> "]")
+
+  # Comment, ignore until newline
+  defp strip_ext(<<?#, rest::binary>>, state, acc) do
+    # We either enter a comment inside a class, a comment or we were already
+    # inside a comment and we continue
+    next_state = if(is_nil(state), do: :comment, else: state)
+    strip_ext(rest, next_state, acc)
+  end
+
+  # Anything inside comment, delete
+  defp strip_ext(<<_, rest::binary>>, :comment, acc) do
+    strip_ext(rest, :comment, acc)
+  end
+
+  # Whitespace outisde of class, delete too
+  defp strip_ext(<<char, rest::binary>>, nil, acc) when char in @whitespace do
+    strip_ext(rest, nil, acc)
+  end
+
+  # Anything else is kept
+  defp strip_ext(<<chr, rest::binary>>, nil, acc), do: strip_ext(rest, nil, acc <> <<chr>>)
+
+  # Inside class we have to keep everything
+  defp strip_ext(<<chr, rest::binary>>, :class, acc), do: strip_ext(rest, :class, acc <> <<chr>>)
 end

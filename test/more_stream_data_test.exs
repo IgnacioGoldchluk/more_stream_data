@@ -387,6 +387,23 @@ defmodule MoreStreamDataTest do
   end
 
   describe "from_regex/1" do
+    property "extended mode removes newlines and comments" do
+      pattern = ~r"""
+      \d+ # Digit
+      \# # Numeral symbol
+      \[ # Open bracket
+      \] # Closing bracket
+      [a-z] (?# Inline comment) # Random comment
+      [ ]+ # Another comment
+      """x
+
+      stripped_pattern = ~r/\d+\#\[\][a-z][ ]+/
+
+      check all str <- from_regex(pattern) do
+        assert Regex.match?(stripped_pattern, str)
+      end
+    end
+
     property "caseless option geneates case insensitive regex" do
       check all str <- from_regex(~r/^qwertyasd$/i) do
         assert String.downcase(str) == "qwertyasd"

@@ -62,7 +62,7 @@ The goal is to port [Python's Hypothesis](https://hypothesis.readthedocs.io/en/l
       - [ ] Negative lookbehind
     - [ ] Modifiers
       - [x] Case insensitive `/i`
-      - [ ] Extended `/x`
+      - [x] Extended `/x`
       - [ ] Unicode `/u`
       - [ ] Dotall `/s`
       - [ ] Multiline `/m`
