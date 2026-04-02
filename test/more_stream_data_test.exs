@@ -387,6 +387,24 @@ defmodule MoreStreamDataTest do
   end
 
   describe "from_regex/1" do
+    property "multiline with \\A and \\z matches full string" do
+      pattern = ~r/\A[A-Z]{3}\z/
+
+      check all str <- from_regex(pattern) do
+        assert Regex.match?(pattern, str)
+      end
+    end
+
+    property "multiline mode matches '^' and '$' at line level only" do
+      pattern = ~r/^[A-Z]{3}$/m
+
+      check all str <- from_regex(pattern) do
+        str
+        |> String.split("\n")
+        |> Enum.any?(fn line -> Regex.match?(pattern, line) end)
+      end
+    end
+
     property "extended mode removes newlines and comments" do
       pattern = ~r"""
       \d+ # Digit

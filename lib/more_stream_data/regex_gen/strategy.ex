@@ -43,8 +43,6 @@ defmodule MoreStreamData.RegexGen.Strategy do
   # - /u (unicode) => insetad of :ascii everything should be :printable
   # - /s (DOTALL) => :any_character should include everything
   # - /f (firstline) => ignore for now since we don't support multiline
-  # - /m (multiline) => ^$ become "line" delimites and are replaced with \A,\z. Do not support
-  # for now
   defp from_ast({:meta_sequence, :word}), do: StreamData.member_of(@word) |> to_str()
   defp from_ast({:meta_sequence, :digit}), do: StreamData.integer(?0..?9) |> to_str()
   defp from_ast({:meta_sequence, :blank}), do: StreamData.constant(32) |> to_str()
@@ -135,22 +133,47 @@ defmodule MoreStreamData.RegexGen.Strategy do
   end
 
   defp apply_anchors(regex_gen, metadata) do
-    regex_gen |> prepend_str(metadata) |> append_str(metadata)
+    regex_gen
+    |> prepend_str(metadata)
+    |> append_str(metadata)
   end
 
-  defp prepend_str(regex_gen, %{anchor_start?: true}), do: regex_gen
+  # Prepend cases
+  # anchor_start?: true -> can't add anything
+  # line_start?: true -> can add lines
+  # both false -> can add anything
+  defp prepend_str(regex_gen, %Metadata{anchor_start?: true}), do: regex_gen
 
-  defp prepend_str(regex_gen, _) do
+  defp prepend_str(regex_gen, %Metadata{line_start?: true}) do
     StreamData.bind(regex_gen, fn str ->
-      StreamData.map(StreamData.string(:ascii), fn prefix -> prefix <> str end)
+      StreamData.string(:ascii)
+      |> StreamData.list_of()
+      |> StreamData.map(fn lines -> Enum.join(lines ++ [str], "\n") end)
     end)
   end
 
-  defp append_str(regex_gen, %{anchor_end?: true}), do: regex_gen
-
-  defp append_str(regex_gen, _) do
+  defp prepend_str(regex_gen, %Metadata{}) do
     StreamData.bind(regex_gen, fn str ->
-      StreamData.map(StreamData.string(:ascii), fn suffix -> str <> suffix end)
+      StreamData.string(:ascii)
+      |> StreamData.map(fn text -> text <> str end)
+    end)
+  end
+
+  # Same case as prepend
+  defp append_str(regex_gen, %Metadata{anchor_end?: true}), do: regex_gen
+
+  defp append_str(regex_gen, %Metadata{line_end?: true}) do
+    StreamData.bind(regex_gen, fn str ->
+      StreamData.string(:ascii)
+      |> StreamData.list_of()
+      |> StreamData.map(fn lines -> Enum.join([str | lines], "\n") end)
+    end)
+  end
+
+  defp append_str(regex_gen, %Metadata{}) do
+    StreamData.bind(regex_gen, fn str ->
+      StreamData.string(:ascii)
+      |> StreamData.map(fn text -> str <> text end)
     end)
   end
 

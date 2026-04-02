@@ -65,7 +65,7 @@ The goal is to port [Python's Hypothesis](https://hypothesis.readthedocs.io/en/l
       - [x] Extended `/x`
       - [ ] Unicode `/u`
       - [ ] Dotall `/s`
-      - [ ] Multiline `/m`
+      - [x] Multiline `/m`
       - [ ] Firstline `/f`
       - [x] Ungreedy `/U`. Ignored since it does not affect string generation.
       - [x] Export `/E`. Ignored since it does not affect string generation.

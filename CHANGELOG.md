@@ -4,6 +4,7 @@
 - `from_regex/1`:
     - Ignore inline comments `(?# )`
     - Add support for `:extended` (`/x`) modifier
+    - Add support for `:multiline` (`/m`) modifier
 
 ## 0.2.0 [2026-03-30]
 
