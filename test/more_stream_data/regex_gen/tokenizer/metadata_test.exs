@@ -32,5 +32,9 @@ defmodule MoreStreamData.RegexGen.Tokenizer.MetadataTest do
     test "does not set anchor_end? if regex is multiline" do
       assert %Metadata{anchor_end?: false, line_end?: true} = Metadata.new(~r/[a-z]+$/m)
     end
+
+    test "sets anchor_stat? if regex contains 'firstline' modifier" do
+      assert %Metadata{anchor_start?: true} = Metadata.new(~r/[a-z]+/f)
+    end
   end
 end

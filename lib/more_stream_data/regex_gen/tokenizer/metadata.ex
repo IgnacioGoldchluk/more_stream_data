@@ -39,7 +39,7 @@ defmodule MoreStreamData.RegexGen.Tokenizer.Metadata do
   end
 
   defp anchor_start?(pattern, options) do
-    String.starts_with?(pattern, "\\A") or
+    Enum.member?(options, :firstline) or String.starts_with?(pattern, "\\A") or
       (String.starts_with?(pattern, "^") and not Enum.member?(options, :multiline))
   end
 

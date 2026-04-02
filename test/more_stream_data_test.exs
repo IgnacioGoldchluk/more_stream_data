@@ -387,6 +387,14 @@ defmodule MoreStreamDataTest do
   end
 
   describe "from_regex/1" do
+    property "/f modifier forces the regex to match at the beginning" do
+      pattern = ~r/very_unlikely_that_thisgets_duplicated/f
+
+      check all str <- from_regex(pattern) do
+        assert String.starts_with?(str, "very_unlikely_that_thisgets_duplicated")
+      end
+    end
+
     property "multiline with \\A and \\z matches full string" do
       pattern = ~r/\A[A-Z]{3}\z/
 
