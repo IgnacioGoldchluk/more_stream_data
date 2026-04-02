@@ -1,3 +1,9 @@
+## Unreleased
+
+### Fixes
+- `from_regex/1`:
+    - Ignore inline comments `(?# )`
+
 ## 0.2.0 [2026-03-30]
 
 ### New Features

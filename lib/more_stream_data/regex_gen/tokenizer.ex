@@ -107,6 +107,11 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
     tokenize(discard_named_group(rest), [:lparen | acc])
   end
 
+  defp tokenize(<<?(, ??, ?#, rest::binary>>, acc) do
+    # Inline comment in the form of (?# comment ). Discard it
+    tokenize(discard_comment(rest), acc)
+  end
+
   defp tokenize(<<?(, rest::binary>>, acc), do: tokenize(rest, [:lparen | acc])
   defp tokenize(<<?), rest::binary>>, acc), do: tokenize(rest, [:rparen | acc])
 
@@ -188,6 +193,10 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
 
   defp discard_named_group(<<?>, rest::binary>>), do: rest
   defp discard_named_group(<<_, rest::binary>>), do: discard_named_group(rest)
+
+  defp discard_comment(<<?\\, ?), rest::binary>>), do: discard_comment(rest)
+  defp discard_comment(<<?), rest::binary>>), do: rest
+  defp discard_comment(<<_, rest::binary>>), do: discard_comment(rest)
 
   # When inside character class "[]" everything is considered as literal except
   # for ranges like [a-z] and character classes like \w

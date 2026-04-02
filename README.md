@@ -42,12 +42,18 @@ The goal is to port [Python's Hypothesis](https://hypothesis.readthedocs.io/en/l
   - [x] `floats`
     - [x] `exclude_min` and `exclude_max` options.
   - [x] `decimal`
+  - [x] `emails`
+  - [x] `domains`
+  - [x] `urls`
+  - [x] `datetime`
+  - [x] `time`
+  - [x] `timedeltas`
+  - [x] `ip_address`
   - [x] `from_regex`: A bit slow but works
     - [ ] `\b` word boundary
-    - [x] `\v` vertica line meta character
-    - [x] Non-printable characters (automatically supported with `\x`)
-    - [x] `xHH` for hex characters
-    - [x] `x{HHH...}` for hex characters
+    - [x] `\v` vertical line meta character
+    - [x] Non-printable characters (as long as they are specified using `\x`)
+    - [x] `xHH` and `x{HHH...}` for hex characters
     - [ ] Atomic groups
     - [ ] Lookarounds
       - [ ] Positive lookahead
@@ -61,11 +67,5 @@ The goal is to port [Python's Hypothesis](https://hypothesis.readthedocs.io/en/l
       - [ ] Dotall `/s`
       - [ ] Multiline `/m`
       - [ ] Firstline `/f`
-      - [x] Ungreedy `/U`. Not actually supported but redundant for string generation.
-  - [x] `emails`
-  - [x] `domains`
-  - [x] `urls`
-  - [x] `datetime`
-  - [x] `time`
-  - [x] `timedeltas`
-  - [x] `ip_address`
+      - [x] Ungreedy `/U`. Ignored since it does not affect string generation.
+      - [x] Export `/E`. Ignored since it does not affect string generation.

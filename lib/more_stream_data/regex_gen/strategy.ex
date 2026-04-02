@@ -29,12 +29,9 @@ defmodule MoreStreamData.RegexGen.Strategy do
 
   # We still have to pass the modifiers to know what values to generate.
   # - /u (unicode) => insetad of :ascii everything should be :printable
-  # - /i (case insensitive) => uppercase or lowercase segments of the string
   # - /s (DOTALL) => :any_character should include everything
-  # - /E (export) => ignore
-  # - /U (ungreedy) => switches the lazy/greedy approach. Ignore since it's unused (but test)
   # - /f (firstline) => ignore for now since we don't support multiline
-  # - /x (extended) => ignore for now, never seen in prod?
+  # - /x (extended) => whitespace are ignored, lines starting with # are treated as comments
   # - /m (multiline) => ^$ become "line" delimites and are replaced with \A,\z. Do not support
   # for now
   defp from_ast({:meta_sequence, :word}), do: StreamData.member_of(@word) |> to_str()

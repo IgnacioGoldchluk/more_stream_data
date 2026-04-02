@@ -378,6 +378,21 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
   end
 
   describe "groups" do
+    test "discard comments" do
+      pattern = ~r/\d(?# this is a digit )[a-z]+(?# and these are spaces)e/
+
+      expected = [
+        {:meta_sequence, :digit},
+        :concat,
+        {:character_class, :positive, [range: {?a, ?z}]},
+        {:quantifier, :plus, :greedy},
+        :concat,
+        {:literal, ?e}
+      ]
+
+      assert matches_tokens(pattern, expected)
+    end
+
     test "discard non-capturing and named group information" do
       pattern = ~r/ab(?:c)(?<de>fg)/
 
