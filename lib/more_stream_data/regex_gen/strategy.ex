@@ -4,6 +4,8 @@ defmodule MoreStreamData.RegexGen.Strategy do
   alias MoreStreamData.RegexGen.{AST, Tokenizer}
   alias MoreStreamData.Utils
 
+  alias MoreStreamData.RegexGen.Tokenizer.Metadata
+
   @word Enum.concat([Enum.to_list(?a..?z), Enum.to_list(?A..?Z), Enum.to_list(?0..?9), [?_]])
   @non_word 32..255
             |> Enum.filter(fn char ->
@@ -21,7 +23,9 @@ defmodule MoreStreamData.RegexGen.Strategy do
     source = Regex.source(regex)
     pattern = if(:extended in options, do: remove_extended(source), else: source)
 
-    {:ok, %{tokens: tokens, metadata: metadata}} = Tokenizer.tokenize(pattern, options)
+    metadata = Metadata.new(pattern, options)
+
+    {:ok, tokens} = Tokenizer.tokenize(pattern)
 
     tokens |> AST.parse() |> from_ast() |> apply_caseless(options) |> apply_anchors(metadata)
   end

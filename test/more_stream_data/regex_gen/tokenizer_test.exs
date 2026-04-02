@@ -96,7 +96,7 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
   end
 
   describe "metadata" do
-    test "sets anchor_start if '^' is present at the beginning of the pattern" do
+    test "ignores '^' at the beginning of the pattern" do
       pattern = ~r/^[A-Z]+_[a-z]+/ |> Regex.source()
 
       expected = [
@@ -109,17 +109,23 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
         {:quantifier, :plus, :greedy}
       ]
 
-      assert {:ok, %{tokens: tokenized, metadata: metadata}} = Tokenizer.tokenize(pattern)
-      assert metadata.anchor_start? == true
-      assert metadata.anchor_end? == false
-      assert tokenized == expected
+      assert matches_tokens(pattern, expected)
     end
 
-    test "sets anchor_end if '$' is present at the end of the pattern" do
+    test "ignores '$' at the end of the pattern" do
       pattern = ~r/[A-Z]+_[a-z]+$/ |> Regex.source()
-      assert {:ok, %{metadata: metadata}} = Tokenizer.tokenize(pattern)
-      assert metadata.anchor_start? == false
-      assert metadata.anchor_end? == true
+
+      expected = [
+        {:character_class, :positive, [range: {?A, ?Z}]},
+        {:quantifier, :plus, :greedy},
+        :concat,
+        {:literal, ?_},
+        :concat,
+        {:character_class, :positive, [range: {?a, ?z}]},
+        {:quantifier, :plus, :greedy}
+      ]
+
+      assert matches_tokens(pattern, expected)
     end
 
     test "returns error if '^' is unescaped and present in the pattern" do
@@ -456,7 +462,7 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
   end
 
   defp matches_tokens(pattern, expected) when is_binary(pattern) do
-    assert {:ok, %{tokens: tokenized}} = Tokenizer.tokenize(pattern)
+    assert {:ok, tokenized} = Tokenizer.tokenize(pattern)
     assert expected == tokenized
   end
 end

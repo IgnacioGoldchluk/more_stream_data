@@ -62,7 +62,7 @@ defmodule MoreStreamData.RegexGen.ASTTest do
   end
 
   defp matches_ast(pattern, expected) do
-    {:ok, %{tokens: tokens}} = pattern |> Regex.source() |> Tokenizer.tokenize()
+    {:ok, tokens} = pattern |> Regex.source() |> Tokenizer.tokenize()
     assert expected == AST.parse(tokens)
   end
 end
