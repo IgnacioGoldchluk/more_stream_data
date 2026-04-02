@@ -97,7 +97,7 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
 
   describe "metadata" do
     test "sets anchor_start if '^' is present at the beginning of the pattern" do
-      pattern = ~r/^[A-Z]+_[a-z]+/
+      pattern = ~r/^[A-Z]+_[a-z]+/ |> Regex.source()
 
       expected = [
         {:character_class, :positive, [{:range, {65, 90}}]},
@@ -110,23 +110,25 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
       ]
 
       assert {:ok, %{tokens: tokenized, metadata: metadata}} = Tokenizer.tokenize(pattern)
-      assert metadata == %{anchor_start?: true, anchor_end?: false}
+      assert metadata.anchor_start? == true
+      assert metadata.anchor_end? == false
       assert tokenized == expected
     end
 
     test "sets anchor_end if '$' is present at the end of the pattern" do
-      pattern = ~r/[A-Z]+_[a-z]+$/
+      pattern = ~r/[A-Z]+_[a-z]+$/ |> Regex.source()
       assert {:ok, %{metadata: metadata}} = Tokenizer.tokenize(pattern)
-      assert metadata == %{anchor_start?: false, anchor_end?: true}
+      assert metadata.anchor_start? == false
+      assert metadata.anchor_end? == true
     end
 
     test "returns error if '^' is unescaped and present in the pattern" do
-      pattern = ~r/^asd^e/
+      pattern = ~r/^asd^e/ |> Regex.source()
       assert {:error, "'^' not at beginning of pattern", _} = Tokenizer.tokenize(pattern)
     end
 
     test "returns error if '$' is unescaped and present in the pattern" do
-      pattern = ~r/asd$e/
+      pattern = ~r/asd$e/ |> Regex.source()
       assert {:error, "'$' not at end of pattern", _} = Tokenizer.tokenize(pattern)
     end
 
@@ -418,38 +420,42 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
 
   describe "unsupported options" do
     test "positive lookahead returns error" do
-      pattern = ~r/a(?=b)c/
+      pattern = ~r/a(?=b)c/ |> Regex.source()
       assert {:error, "positive lookahead unsupported", _} = Tokenizer.tokenize(pattern)
     end
 
     test "negative lookahead returns error" do
-      pattern = ~r/a(?!b)c/
+      pattern = ~r/a(?!b)c/ |> Regex.source()
       assert {:error, "negative lookahead unsupported", _} = Tokenizer.tokenize(pattern)
     end
 
     test "positive lookbehind returns error" do
-      pattern = ~r/a(?<=b)c/
+      pattern = ~r/a(?<=b)c/ |> Regex.source()
       assert {:error, "positive lookbehind unsupported", _} = Tokenizer.tokenize(pattern)
     end
 
     test "negative lookbehind returns error" do
-      pattern = ~r/a(?<!b)c/
+      pattern = ~r/a(?<!b)c/ |> Regex.source()
       assert {:error, "negative lookbehind unsupported", _} = Tokenizer.tokenize(pattern)
     end
 
     test "recursive references return error" do
       for pat <- [~r/(\d+)\1/, ~r/(\d+)\g1/, ~r/(?<a>\d+)\k<a>/, ~r/(?<a>\d+)\k{a}/] do
-        assert {:error, "recursive reference" <> _, _} = Tokenizer.tokenize(pat)
+        assert {:error, "recursive reference" <> _, _} = Tokenizer.tokenize(Regex.source(pat))
       end
     end
 
     test "atomic group returns error" do
-      pattern = ~r/a(?>b)c/
+      pattern = ~r/a(?>b)c/ |> Regex.source()
       assert {:error, "atomic group unsupported", _} = Tokenizer.tokenize(pattern)
     end
   end
 
-  defp matches_tokens(pattern, expected) do
+  defp matches_tokens(pattern, expected) when is_struct(pattern, Regex) do
+    matches_tokens(Regex.source(pattern), expected)
+  end
+
+  defp matches_tokens(pattern, expected) when is_binary(pattern) do
     assert {:ok, %{tokens: tokenized}} = Tokenizer.tokenize(pattern)
     assert expected == tokenized
   end

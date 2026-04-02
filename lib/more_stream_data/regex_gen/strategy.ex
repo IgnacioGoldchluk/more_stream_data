@@ -21,7 +21,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
     source = Regex.source(regex)
     pattern = if(:extended in options, do: remove_extended(source), else: source)
 
-    {:ok, %{tokens: tokens, metadata: metadata}} = Tokenizer.tokenize(pattern)
+    {:ok, %{tokens: tokens, metadata: metadata}} = Tokenizer.tokenize(pattern, options)
 
     tokens |> AST.parse() |> from_ast() |> apply_caseless(options) |> apply_anchors(metadata)
   end
@@ -39,7 +39,6 @@ defmodule MoreStreamData.RegexGen.Strategy do
   # - /u (unicode) => insetad of :ascii everything should be :printable
   # - /s (DOTALL) => :any_character should include everything
   # - /f (firstline) => ignore for now since we don't support multiline
-  # - /x (extended) => whitespace are ignored, lines starting with # are treated as comments
   # - /m (multiline) => ^$ become "line" delimites and are replaced with \A,\z. Do not support
   # for now
   defp from_ast({:meta_sequence, :word}), do: StreamData.member_of(@word) |> to_str()

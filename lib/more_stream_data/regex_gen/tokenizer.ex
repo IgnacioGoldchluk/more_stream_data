@@ -3,6 +3,8 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
 
   import MoreStreamData.RegexGen.Tokenizer.Tokens
 
+  alias MoreStreamData.RegexGen.Tokenizer.Metadata
+
   @quantifiers ~c"*+?"
   @meta_sequences ~c"wWdDsShHvV"
   @special_symbols ~c"[]{}()|.^$\\-" ++ @quantifiers
@@ -54,115 +56,121 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
           | character_class()
           | :concat
 
-  @type metadata :: %{anchor_start?: boolean(), anchor_end?: boolean()}
-
-  @type tokenized :: %{tokens: [token()], metadata: metadata()}
+  @type tokenized :: %{tokens: [token()], metadata: Metadata.t()}
 
   @doc """
   Tokenizes a regular expression. Returns a tuple with the tokenized result or
   an error tuple with the unparsed part
   """
-  @spec tokenize(String.t() | Regex.t()) :: {:ok, tokenized()} | {:error, String.t(), String.t()}
-  def tokenize(%Regex{} = pattern), do: tokenize(Regex.source(pattern))
+  @spec tokenize(String.t()) :: {:ok, tokenized()} | {:error, String.t(), String.t()}
+  def tokenize(pattern, options \\ []) when is_binary(pattern) do
+    metadata = Metadata.new(pattern, options)
 
-  def tokenize(pattern) when is_binary(pattern) do
-    metadata = %{
-      anchor_start?: String.starts_with?(pattern, "^"),
-      anchor_end?: String.ends_with?(pattern, "$") and not String.ends_with?(pattern, "\\$")
-    }
-
-    case tokenize(pattern, []) do
+    case do_tokenize(pattern, []) do
       {:ok, tokenized} -> {:ok, %{tokens: tokenized, metadata: metadata}}
       {:error, _reason, _parsed} = e -> e
     end
   end
 
   # Base case, finished parsing
-  defp tokenize(<<>>, acc), do: {:ok, add_concat(acc)}
+  defp do_tokenize(<<>>, acc), do: {:ok, add_concat(acc)}
 
-  # Error cases, "^" or "$" not at the beginning/end of string
-  defp tokenize(<<?^, rest::binary>>, []), do: tokenize(rest, [])
-  defp tokenize(<<?^, rest::binary>>, _), do: {:error, "'^' not at beginning of pattern", rest}
-  defp tokenize(<<?$>>, acc), do: tokenize(<<>>, acc)
-  defp tokenize(<<?$, rest::binary>>, _), do: {:error, "'$' not at end of pattern", rest}
+  # Error cases, "^", "\A", "$", "\z" not at the beginning/end of string
+  defp do_tokenize(<<?\\, ?A, rest::binary>>, []), do: do_tokenize(rest, [])
+
+  defp do_tokenize(<<?\\, ?A, rest::binary>>, _),
+    do: {:error, "'\\A' not at beginning of pattern", rest}
+
+  defp do_tokenize(<<?^, rest::binary>>, []), do: do_tokenize(rest, [])
+  defp do_tokenize(<<?^, rest::binary>>, _), do: {:error, "'^' not at beginning of pattern", rest}
+  defp do_tokenize(<<?\\, ?z>>, acc), do: do_tokenize(<<>>, acc)
+
+  defp do_tokenize(<<?\\, ?z, rest::binary>>, _),
+    do: {:error, "'\\z' not at end of pattern", rest}
+
+  defp do_tokenize(<<?$>>, acc), do: do_tokenize(<<>>, acc)
+  defp do_tokenize(<<?$, rest::binary>>, _), do: {:error, "'$' not at end of pattern", rest}
 
   # Parentheses
   # First check for unsupported cases or cases that we'll drop
-  defp tokenize(<<?(, ??, ?=, r::binary>>, _), do: {:error, "positive lookahead unsupported", r}
-  defp tokenize(<<?(, ??, ?!, r::binary>>, _), do: {:error, "negative lookahead unsupported", r}
+  defp do_tokenize(<<?(, ??, ?=, r::binary>>, _),
+    do: {:error, "positive lookahead unsupported", r}
 
-  defp tokenize(<<?(, ??, ?<, ?=, r::binary>>, _),
+  defp do_tokenize(<<?(, ??, ?!, r::binary>>, _),
+    do: {:error, "negative lookahead unsupported", r}
+
+  defp do_tokenize(<<?(, ??, ?<, ?=, r::binary>>, _),
     do: {:error, "positive lookbehind unsupported", r}
 
-  defp tokenize(<<?(, ??, ?<, ?!, r::binary>>, _),
+  defp do_tokenize(<<?(, ??, ?<, ?!, r::binary>>, _),
     do: {:error, "negative lookbehind unsupported", r}
 
-  defp tokenize(<<?(, ??, ?>, r::binary>>, _), do: {:error, "atomic group unsupported", r}
+  defp do_tokenize(<<?(, ??, ?>, r::binary>>, _), do: {:error, "atomic group unsupported", r}
 
   # Non-capture group. Keep the paren but ignore the fact that it's non-capturing
-  defp tokenize(<<?(, ??, ?:, rest::binary>>, acc), do: tokenize(rest, [:lparen | acc])
+  defp do_tokenize(<<?(, ??, ?:, rest::binary>>, acc), do: do_tokenize(rest, [:lparen | acc])
 
-  defp tokenize(<<?(, ??, ?<, rest::binary>>, acc) do
+  defp do_tokenize(<<?(, ??, ?<, rest::binary>>, acc) do
     # Named capture group in the form of (?<name>...) remove everything between <>
-    tokenize(discard_named_group(rest), [:lparen | acc])
+    do_tokenize(discard_named_group(rest), [:lparen | acc])
   end
 
-  defp tokenize(<<?(, ??, ?#, rest::binary>>, acc) do
+  defp do_tokenize(<<?(, ??, ?#, rest::binary>>, acc) do
     # Inline comment in the form of (?# comment ). Discard it
-    tokenize(discard_comment(rest), acc)
+    do_tokenize(discard_comment(rest), acc)
   end
 
-  defp tokenize(<<?(, rest::binary>>, acc), do: tokenize(rest, [:lparen | acc])
-  defp tokenize(<<?), rest::binary>>, acc), do: tokenize(rest, [:rparen | acc])
+  defp do_tokenize(<<?(, rest::binary>>, acc), do: do_tokenize(rest, [:lparen | acc])
+  defp do_tokenize(<<?), rest::binary>>, acc), do: do_tokenize(rest, [:rparen | acc])
 
   # Special characters
-  defp tokenize(<<?., rest::binary>>, acc), do: tokenize(rest, [:any_character | acc])
-  defp tokenize(<<?|, rest::binary>>, acc), do: tokenize(rest, [:union | acc])
+  defp do_tokenize(<<?., rest::binary>>, acc), do: do_tokenize(rest, [:any_character | acc])
+  defp do_tokenize(<<?|, rest::binary>>, acc), do: do_tokenize(rest, [:union | acc])
 
   # Reject \1, \2, ... \9 because it's not possible to represent via NFA.
   # It still is possible to generate a regex that repeats its capturing
   # pattern but too complex. Not going to support it for now
-  defp tokenize(<<?\\, d, rest::binary>>, _) when d in ?1..?9 do
+  defp do_tokenize(<<?\\, d, rest::binary>>, _) when d in ?1..?9 do
     {:error, "recursive reference \\#{d} unsupported", rest}
   end
 
   # Same for backreference with name
-  defp tokenize(<<?\\, ?k, r::binary>>, _), do: {:error, "recursive reference unsupported", r}
-  defp tokenize(<<?\\, ?g, r::binary>>, _), do: {:error, "recursive reference unsupported", r}
+  defp do_tokenize(<<?\\, ?k, r::binary>>, _), do: {:error, "recursive reference unsupported", r}
+  defp do_tokenize(<<?\\, ?g, r::binary>>, _), do: {:error, "recursive reference unsupported", r}
 
   # Quantifiers
-  defp tokenize(<<q, ??, rest::binary>>, acc) when q in @quantifiers do
-    tokenize(rest, [to_quantifier(q, quantifier_mode_lazy()) | acc])
+  defp do_tokenize(<<q, ??, rest::binary>>, acc) when q in @quantifiers do
+    do_tokenize(rest, [to_quantifier(q, quantifier_mode_lazy()) | acc])
   end
 
-  defp tokenize(<<q, rest::binary>>, acc) when q in @quantifiers do
-    tokenize(rest, [to_quantifier(q) | acc])
+  defp do_tokenize(<<q, rest::binary>>, acc) when q in @quantifiers do
+    do_tokenize(rest, [to_quantifier(q) | acc])
   end
 
-  defp tokenize(<<?{, rest::binary>> = pattern, acc) do
+  defp do_tokenize(<<?{, rest::binary>> = pattern, acc) do
     case repetitions(pattern) do
-      nil -> tokenize(rest, [literal(?{) | acc])
-      {prefix, token} -> tokenize(String.replace_prefix(pattern, prefix, ""), [token | acc])
+      nil -> do_tokenize(rest, [literal(?{) | acc])
+      {prefix, token} -> do_tokenize(String.replace_prefix(pattern, prefix, ""), [token | acc])
     end
   end
 
-  defp tokenize(<<?\\, seq, rest::binary>>, acc) when seq in @meta_sequences do
-    tokenize(rest, [to_meta_sequence(seq) | acc])
+  defp do_tokenize(<<?\\, seq, rest::binary>>, acc) when seq in @meta_sequences do
+    do_tokenize(rest, [to_meta_sequence(seq) | acc])
   end
 
-  defp tokenize(<<?\\, ?x, ?{, rest::binary>>, acc) do
+  defp do_tokenize(<<?\\, ?x, ?{, rest::binary>>, acc) do
     # Consume until we hit a `}` and convert to binary
     {hex_digits, rest} = consume_hex([], rest)
     {value, ""} = Integer.parse(hex_digits, 16)
-    tokenize(rest, [{:literal, value} | acc])
+    do_tokenize(rest, [{:literal, value} | acc])
   end
 
-  defp tokenize(<<?\\, ?x, d1, d2, rest::binary>>, acc) do
+  defp do_tokenize(<<?\\, ?x, d1, d2, rest::binary>>, acc) do
     {hex, ""} = Integer.parse(<<d1, d2>>, 16)
-    tokenize(rest, [{:literal, hex} | acc])
+    do_tokenize(rest, [{:literal, hex} | acc])
   end
 
-  defp tokenize(<<?\\, char, rest::binary>>, acc) do
+  defp do_tokenize(<<?\\, char, rest::binary>>, acc) do
     cond do
       Map.has_key?(@escaped_symbols, char) -> @escaped_symbols[char]
       char in @special_symbols -> char
@@ -170,26 +178,26 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
     end
     |> case do
       nil -> {:error, "unsupported escaped symbol: #{char}", rest}
-      value -> tokenize(rest, [{:literal, value} | acc])
+      value -> do_tokenize(rest, [{:literal, value} | acc])
     end
   end
 
-  defp tokenize(<<?[, ?^, rest::binary>>, acc) do
+  defp do_tokenize(<<?[, ?^, rest::binary>>, acc) do
     case character_class(rest) do
       {:error, _, _} = e -> e
-      {items, remaining} -> tokenize(remaining, [{:character_class, :negative, items} | acc])
+      {items, remaining} -> do_tokenize(remaining, [{:character_class, :negative, items} | acc])
     end
   end
 
-  defp tokenize(<<?[, rest::binary>>, acc) do
+  defp do_tokenize(<<?[, rest::binary>>, acc) do
     case character_class(rest) do
       {:error, _, _} = e -> e
-      {items, remaining} -> tokenize(remaining, [{:character_class, :positive, items} | acc])
+      {items, remaining} -> do_tokenize(remaining, [{:character_class, :positive, items} | acc])
     end
   end
 
   # Nothing else matched, treat as literal
-  defp tokenize(<<char, rest::binary>>, acc), do: tokenize(rest, [literal(char) | acc])
+  defp do_tokenize(<<char, rest::binary>>, acc), do: do_tokenize(rest, [literal(char) | acc])
 
   defp discard_named_group(<<?>, rest::binary>>), do: rest
   defp discard_named_group(<<_, rest::binary>>), do: discard_named_group(rest)
