@@ -3,12 +3,14 @@
 ### Fixes
 - `from_regex/1`:
     - Ignore inline comments `(?# )`
+    - Generate characters from extended ASCII range and non-printable characters
 
 ### New features
 - `from_regex/1`:
     - Add support for `:extended` (`/x`) modifier
     - Add support for `:multiline` (`/m`) modifier
     - Add support for `:firstline` (`/f`) modifier
+    - Add support for `:dotall` (`/s`) modifier
 
 ## 0.2.0 [2026-03-30]
 

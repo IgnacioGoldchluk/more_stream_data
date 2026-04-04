@@ -52,8 +52,8 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
   property "'.' generates anything except for line breaks" do
     check all str <- Strategy.from_regex("^.+$") do
       str
-      |> to_charlist()
-      |> Enum.each(fn c -> refute Enum.member?([?\n, ?\r], c) end)
+      |> String.graphemes()
+      |> Enum.each(fn c -> refute Enum.member?(["\n", "\r"], c) end)
     end
   end
 
@@ -181,17 +181,19 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     property ":non_digit does not generate digits" do
       check all str <- Strategy.from_regex("^\\D*$") do
         str
-        |> to_charlist()
-        |> Enum.each(fn codepoint -> refute Enum.member?(?0..?9, codepoint) end)
+        |> String.graphemes()
+        |> Enum.each(fn codepoint ->
+          refute Enum.member?(String.graphemes("0123456789"), codepoint)
+        end)
       end
     end
 
     property ":non_space does not generate spaces" do
       check all str <- Strategy.from_regex("^\\S*$") do
         str
-        |> to_charlist()
+        |> String.graphemes()
         |> Enum.each(fn codepoint ->
-          refute Enum.member?([?\r, ?\n, ?\t, ?\f, ?\v, 32], codepoint)
+          refute Enum.member?(["\r", "\n", "\t", "\f", "\v", " "], codepoint)
         end)
       end
     end
