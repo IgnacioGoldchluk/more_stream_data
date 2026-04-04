@@ -13,7 +13,7 @@ Add `more_stream_data` to your list of dependencies in `mix.exs`
 ```elixir
 def deps do
   [
-    {:more_stream_data, "~> 0.1", only: :test}
+    {:more_stream_data, "~> 0.3", only: :test}
   ]
 end
 ```
@@ -49,7 +49,8 @@ The goal is to port [Python's Hypothesis](https://hypothesis.readthedocs.io/en/l
   - [x] `time`
   - [x] `timedeltas`
   - [x] `ip_address`
-  - [x] `from_regex`: A bit slow but works
+  - [x] `from_regex`
+    - [ ] Newline setting
     - [ ] `\b` word boundary
     - [x] `\v` vertical line meta character
     - [x] Non-printable characters (as long as they are specified using `\x`)
@@ -64,7 +65,7 @@ The goal is to port [Python's Hypothesis](https://hypothesis.readthedocs.io/en/l
       - [x] Case insensitive `/i`
       - [x] Extended `/x`
       - [ ] Unicode `/u`
-      - [ ] Dotall `/s`
+      - [x] Dotall `/s`
       - [x] Multiline `/m`
       - [x] Firstline `/f`
       - [x] Ungreedy `/U`. Ignored since it does not affect string generation.
