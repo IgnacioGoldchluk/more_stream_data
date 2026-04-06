@@ -17,13 +17,13 @@ defmodule MoreStreamData.RegexGen.Strategy do
   @doc """
   Generates values for the given regex
   """
-  @spec from_regex(String.t() | Regex.t()) :: StreamData.t(String.t())
-  def from_regex(regex) when is_struct(regex, Regex) do
-    options = Regex.opts(regex)
+  @spec from_regex(String.t() | Regex.t(), Keyword.t()) :: StreamData.t(String.t())
+  def from_regex(regex, opts) when is_struct(regex, Regex) do
+    options = parse_opts(regex, opts)
     source = Regex.source(regex)
-    pattern = if(:extended in options, do: remove_extended(source), else: source)
+    pattern = if(:extended in options[:regex_opts], do: remove_extended(source), else: source)
 
-    metadata = Metadata.new(pattern, options)
+    metadata = Metadata.new(pattern, Regex.opts(regex))
 
     {:ok, tokens} = Tokenizer.tokenize(pattern)
 
@@ -31,10 +31,15 @@ defmodule MoreStreamData.RegexGen.Strategy do
     |> AST.parse()
     |> from_ast(options)
     |> apply_caseless(options)
-    |> apply_anchors(metadata)
+    |> apply_anchors(metadata, options)
   end
 
-  def from_regex(regex) when is_binary(regex), do: from_regex(Regex.compile!(regex))
+  def from_regex(regex, opts) when is_binary(regex), do: from_regex(Regex.compile!(regex), opts)
+
+  defp parse_opts(regex, opts) do
+    default = [character_set: :all]
+    default |> Keyword.merge(opts) |> Keyword.put(:regex_opts, Regex.opts(regex))
+  end
 
   defp from_ast({:literal, value}, _opts), do: StreamData.constant(AST.stringify(value))
 
@@ -58,33 +63,33 @@ defmodule MoreStreamData.RegexGen.Strategy do
     StreamData.member_of(verticals()) |> to_str()
   end
 
-  defp from_ast({:meta_sequence, :non_vertical_space}, _) do
-    StreamData.integer(extended_ascii_range())
+  defp from_ast({:meta_sequence, :non_vertical_space}, opts) do
+    ascii_codepoint(opts[:character_set])
     |> StreamData.filter(&(&1 not in verticals()))
     |> to_str()
   end
 
-  defp from_ast({:meta_sequence, :non_digit}, _) do
-    StreamData.integer(extended_ascii_range())
+  defp from_ast({:meta_sequence, :non_digit}, opts) do
+    ascii_codepoint(opts[:character_set])
     |> StreamData.filter(&(&1 not in digit()))
     |> to_str()
   end
 
-  defp from_ast({:meta_sequence, :non_blank}, _) do
-    StreamData.integer(extended_ascii_range()) |> StreamData.filter(&(&1 != 32)) |> to_str()
+  defp from_ast({:meta_sequence, :non_blank}, opts) do
+    ascii_codepoint(opts[:character_set]) |> StreamData.filter(&(&1 != 32)) |> to_str()
   end
 
-  defp from_ast({:meta_sequence, :non_space}, _) do
-    StreamData.integer(extended_ascii_range())
+  defp from_ast({:meta_sequence, :non_space}, opts) do
+    ascii_codepoint(opts[:character_set])
     |> StreamData.filter(&(&1 not in spaces()))
     |> to_str()
   end
 
   defp from_ast(:any_character, opts) do
-    if :dotall in opts do
-      StreamData.integer(extended_ascii_range()) |> to_str()
+    if :dotall in opts[:regex_opts] do
+      ascii_codepoint(opts[:character_set]) |> to_str()
     else
-      StreamData.integer(extended_ascii_range())
+      ascii_codepoint(opts[:character_set])
       |> StreamData.filter(&(&1 not in newlines()))
       |> to_str()
     end
@@ -146,50 +151,50 @@ defmodule MoreStreamData.RegexGen.Strategy do
 
   # Modifiers and metadata
   defp apply_caseless(regex_gen, opts) do
-    if(:caseless in opts, do: Utils.recase(regex_gen), else: regex_gen)
+    if(:caseless in opts[:regex_opts], do: Utils.recase(regex_gen), else: regex_gen)
   end
 
-  defp apply_anchors(regex_gen, metadata) do
+  defp apply_anchors(regex_gen, metadata, opts) do
     regex_gen
-    |> prepend_str(metadata)
-    |> append_str(metadata)
+    |> prepend_str(metadata, opts)
+    |> append_str(metadata, opts)
   end
 
   # Prepend cases
   # anchor_start?: true -> can't add anything
   # line_start?: true -> can add lines
   # both false -> can add anything
-  defp prepend_str(regex_gen, %Metadata{anchor_start?: true}), do: regex_gen
+  defp prepend_str(regex_gen, %Metadata{anchor_start?: true}, _), do: regex_gen
 
-  defp prepend_str(regex_gen, %Metadata{line_start?: true}) do
+  defp prepend_str(regex_gen, %Metadata{line_start?: true}, opts) do
     StreamData.bind(regex_gen, fn str ->
-      StreamData.string(extended_ascii())
+      ascii_string(opts[:character_set])
       |> StreamData.list_of()
       |> StreamData.map(fn lines -> Enum.join(lines ++ [str], "\n") end)
     end)
   end
 
-  defp prepend_str(regex_gen, %Metadata{}) do
+  defp prepend_str(regex_gen, %Metadata{}, opts) do
     StreamData.bind(regex_gen, fn str ->
-      StreamData.string(extended_ascii())
+      ascii_string(opts[:character_set])
       |> StreamData.map(fn text -> text <> str end)
     end)
   end
 
   # Same case as prepend
-  defp append_str(regex_gen, %Metadata{anchor_end?: true}), do: regex_gen
+  defp append_str(regex_gen, %Metadata{anchor_end?: true}, _), do: regex_gen
 
-  defp append_str(regex_gen, %Metadata{line_end?: true}) do
+  defp append_str(regex_gen, %Metadata{line_end?: true}, opts) do
     StreamData.bind(regex_gen, fn str ->
-      StreamData.string(extended_ascii())
+      ascii_string(opts[:character_set])
       |> StreamData.list_of()
       |> StreamData.map(fn lines -> Enum.join([str | lines], "\n") end)
     end)
   end
 
-  defp append_str(regex_gen, %Metadata{}) do
+  defp append_str(regex_gen, %Metadata{}, opts) do
     StreamData.bind(regex_gen, fn str ->
-      StreamData.string(extended_ascii())
+      ascii_string(opts[:character_set])
       |> StreamData.map(fn text -> str <> text end)
     end)
   end
@@ -242,6 +247,20 @@ defmodule MoreStreamData.RegexGen.Strategy do
   # Inside class we have to keep everything
   defp strip_ext(<<chr, rest::binary>>, :class, acc), do: strip_ext(rest, :class, acc <> <<chr>>)
 
-  defp extended_ascii, do: extended_ascii_range() |> Enum.to_list()
+  defp ascii_string(:all), do: StreamData.string(extended_ascii())
+
+  defp ascii_string(:printable) do
+    extended_ascii() |> Enum.filter(&printable?/1) |> StreamData.string()
+  end
+
+  defp ascii_codepoint(:all), do: StreamData.integer(0..255)
+
+  defp ascii_codepoint(:printable),
+    do: Enum.filter(0..255, &printable?/1) |> StreamData.member_of()
+
+  defp extended_ascii, do: Enum.to_list(extended_ascii_range())
+
   defp extended_ascii_range, do: 0..255
+
+  defp printable?(c) when is_integer(c), do: String.printable?(<<c>>)
 end

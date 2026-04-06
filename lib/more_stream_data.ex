@@ -536,19 +536,19 @@ defmodule MoreStreamData do
   @doc """
   Generates valid strings from a given regex.
 
-  The following features are currently unsupported:
-  - Lookarounds
-  - Atomic groups
-  - Backreferences
-  - `\\b`
-  - [Modifiers](https://hexdocs.pm/elixir/Regex.html#module-modifiers)
+  Refer to the [README](./README.md#roadmap) for the list of supported regex features and patterns.
+
+  ## Options
+  - `:character_set` - (`:printable | :all`) if set to `:printable` only
+  printable characters are generated, otherwise every character in the ASCII extended
+  range 0-255 can be generated. Defaults to `:all`
 
   ## Shrinking
   Shrinks towards lower ASCII characters and shorter expressions. For example
   `from_regex(~r/[A-Z]+_[a-z]+/)` shrinks towards `A_a`
   """
-  @spec from_regex(Regex.t() | String.t()) :: StreamData.t(String.t())
-  def from_regex(regex), do: RegexGen.Strategy.from_regex(regex)
+  @spec from_regex(Regex.t() | String.t(), Keyword.t()) :: StreamData.t(String.t())
+  def from_regex(regex, opts \\ []), do: RegexGen.Strategy.from_regex(regex, opts)
 
   @doc """
   Generates valid domains according to [RFC-1035](https://datatracker.ietf.org/doc/html/rfc1035)

@@ -1,5 +1,11 @@
 ## Unreleased
 
+## 0.3.1 [2026-04-06]
+
+### New features
+- `from_regex/1`:
+    - Add `:character_set` option
+
 ## 0.3.0 [2026-04-04]
 
 ### Fixes
@@ -16,7 +22,7 @@
 
 ## 0.2.0 [2026-03-30]
 
-### New Features
+### New features
 - `from_proto/1`
 - `from_regex/1`:
     - Add support for `:caseless` (`/i`) modifier
