@@ -413,6 +413,14 @@ defmodule MoreStreamDataTest do
       end
     end
 
+    property "generates first matching case from atomic group" do
+      pattern = ~r/^at(?>om[a-z]|ic)s$/
+
+      check all str <- from_regex(pattern) do
+        assert Regex.match?(pattern, str)
+      end
+    end
+
     property "extended mode removes newlines and comments" do
       pattern = ~r"""
       \d+ # Digit

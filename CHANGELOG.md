@@ -1,5 +1,9 @@
 ## Unreleased
 
+### New features
+- `from_regex/1`:
+    - Limited support for atomic groups `(?>...)`. Generates values based on the first group option
+
 ## 0.3.1 [2026-04-06]
 
 ### New features

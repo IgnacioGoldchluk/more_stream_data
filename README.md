@@ -50,12 +50,10 @@ The goal is to port [Python's Hypothesis](https://hypothesis.readthedocs.io/en/l
   - [x] `timedeltas`
   - [x] `ip_address`
   - [x] `from_regex`
-    - [ ] Newline setting
+    - [ ] Newline setting `(*ANYCRLF)`, `(*NUL)`, etc.
     - [ ] `\b` word boundary
-    - [x] `\v` vertical line meta character
-    - [x] Non-printable characters (as long as they are specified using `\x`)
     - [x] `xHH` and `x{HHH...}` for hex characters
-    - [ ] Atomic groups
+    - [x] Atomic groups: Always matches the first option
     - [ ] Lookarounds
       - [ ] Positive lookahead
       - [ ] Negative lookahead

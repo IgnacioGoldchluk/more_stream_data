@@ -179,7 +179,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     end
 
     property ":non_digit does not generate digits" do
-      check all str <- Strategy.from_regex("^\\D*$", []) do
+      check all str <- Strategy.from_regex("^\\D*$", character_set: :printable) do
         str
         |> String.graphemes()
         |> Enum.each(fn codepoint ->
@@ -189,7 +189,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     end
 
     property ":non_space does not generate spaces" do
-      check all str <- Strategy.from_regex("^\\S*$", []) do
+      check all str <- Strategy.from_regex("^\\S*$", character_set: :printable) do
         str
         |> String.graphemes()
         |> Enum.each(fn codepoint ->
@@ -200,7 +200,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
   end
 
   property "concatenates special characters" do
-    check all str <- Strategy.from_regex("^\\d[a-z]$", []) do
+    check all str <- Strategy.from_regex("^\\d[a-z]$", character_set: :printable) do
       [c1, c2] = to_charlist(str)
       assert c1 in ?0..?9
       assert c2 in ?a..?z

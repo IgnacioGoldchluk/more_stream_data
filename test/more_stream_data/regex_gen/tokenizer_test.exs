@@ -450,10 +450,42 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
         assert {:error, "recursive reference" <> _, _} = Tokenizer.tokenize(Regex.source(pat))
       end
     end
+  end
 
-    test "atomic group returns error" do
+  describe "atomic group" do
+    test "single atomic group" do
       pattern = ~r/a(?>b)c/ |> Regex.source()
-      assert {:error, "atomic group unsupported", _} = Tokenizer.tokenize(pattern)
+
+      expected = [
+        {:literal, ?a},
+        :concat,
+        :lparen,
+        {:literal, ?b},
+        :rparen,
+        :concat,
+        {:literal, ?c}
+      ]
+
+      matches_tokens(pattern, expected)
+    end
+
+    test "keeps only first matching case" do
+      pattern = ~r/a(?>a[a-z]+|b|cdefg)h/
+
+      expected = [
+        {:literal, ?a},
+        :concat,
+        :lparen,
+        {:literal, ?a},
+        :concat,
+        {:character_class, :positive, [range: {?a, ?z}]},
+        {:quantifier, :plus, :greedy},
+        :rparen,
+        :concat,
+        {:literal, ?h}
+      ]
+
+      matches_tokens(pattern, expected)
     end
   end
 

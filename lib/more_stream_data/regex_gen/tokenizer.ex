@@ -96,7 +96,7 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   defp tokenize(<<?(, ??, ?<, ?!, r::binary>>, _),
     do: {:error, "negative lookbehind unsupported", r}
 
-  defp tokenize(<<?(, ??, ?>, r::binary>>, _), do: {:error, "atomic group unsupported", r}
+  defp tokenize(<<?(, ??, ?>, rest::binary>>, acc), do: tokenize(atomic_group(rest, ~c"("), acc)
 
   # Non-capture group. Keep the paren but ignore the fact that it's non-capturing
   defp tokenize(<<?(, ??, ?:, rest::binary>>, acc), do: tokenize(rest, [:lparen | acc])
@@ -196,6 +196,22 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   defp discard_comment(<<?\\, ?), rest::binary>>), do: discard_comment(rest)
   defp discard_comment(<<?), rest::binary>>), do: rest
   defp discard_comment(<<_, rest::binary>>), do: discard_comment(rest)
+
+  defp atomic_group(<<?|, rest::binary>>, acc) do
+    # Discard until we find the closing ')'. Then put the accumulated values
+    # back and tokenize everything
+    to_string(Enum.reverse([?) | acc])) <> discard_rest_of_group(rest)
+  end
+
+  # Special case when there was no "|"
+  defp atomic_group(")" <> rest, acc), do: to_string(Enum.reverse([?) | acc])) <> rest
+
+  defp atomic_group(<<??, c, rest::binary>>, acc), do: atomic_group(rest, [c, ?? | acc])
+  defp atomic_group(<<c, rest::binary>>, acc), do: atomic_group(rest, [c | acc])
+
+  defp discard_rest_of_group(<<?), rest::binary>>), do: rest
+  defp discard_rest_of_group(<<?\\, _escaped, rest::binary>>), do: discard_rest_of_group(rest)
+  defp discard_rest_of_group(<<_char, rest::binary>>), do: discard_rest_of_group(rest)
 
   # When inside character class "[]" everything is considered as literal except
   # for ranges like [a-z] and character classes like \w
