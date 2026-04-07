@@ -50,7 +50,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
   end
 
   property "'.' generates anything except for line breaks" do
-    check all str <- Strategy.from_regex("^.+$", []) do
+    check all str <- Strategy.from_regex("^.+$", character_set: :printable) do
       str
       |> String.graphemes()
       |> Enum.each(fn c -> refute Enum.member?(["\n", "\r"], c) end)
