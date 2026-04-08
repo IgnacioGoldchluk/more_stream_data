@@ -3,7 +3,7 @@ defmodule MoreStreamData.RegexGen.AST do
   alias MoreStreamData.Tokenizer
 
   @type ast ::
-          {:literal, String.t()}
+          {:literal, list(non_neg_integer())}
           | Tokenizer.character_class()
           | {:concat, {ast(), ast()}}
           | {:union, {ast(), ast()}}
@@ -83,7 +83,7 @@ defmodule MoreStreamData.RegexGen.AST do
     merge_concat(collapse_literals(left), collapse_literals(right))
   end
 
-  defp collapse_literals({:literal, value}), do: {:literal, stringify(value)}
+  defp collapse_literals({:literal, value}), do: {:literal, to_list(value)}
 
   defp collapse_literals({:union, {left, right}}) do
     {:union, {collapse_literals(left), collapse_literals(right)}}
@@ -95,20 +95,17 @@ defmodule MoreStreamData.RegexGen.AST do
 
   defp collapse_literals(other), do: other
 
-  defp merge_concat({:literal, l}, {:literal, r}), do: {:literal, stringify(l) <> stringify(r)}
+  defp merge_concat({:literal, l}, {:literal, r}), do: {:literal, to_list(l) ++ to_list(r)}
 
   defp merge_concat({:literal, l}, {:concat, {{:literal, r1}, r2}}) do
-    merge_concat({:literal, stringify(l) <> stringify(r1)}, r2)
+    merge_concat({:literal, to_list(l) ++ to_list(r1)}, r2)
   end
 
   defp merge_concat({:concat, l1, {:literal, l2}}, {:literal, r}) do
-    merge_concat(l1, {:literal, stringify(l2) <> stringify(r)})
+    merge_concat(l1, {:literal, to_list(l2) ++ to_list(r)})
   end
 
   defp merge_concat(l, r), do: {:concat, {l, r}}
-
-  def stringify(c) when is_integer(c), do: <<c>>
-  def stringify(c) when is_binary(c), do: c
 
   defp operand?({:literal, _}), do: true
   defp operand?(:any_character), do: true
@@ -118,4 +115,7 @@ defmodule MoreStreamData.RegexGen.AST do
 
   defp precedence(:concat), do: 2
   defp precedence(:union), do: 1
+
+  defp to_list(c) when is_list(c), do: c
+  defp to_list(c) when is_integer(c), do: [c]
 end

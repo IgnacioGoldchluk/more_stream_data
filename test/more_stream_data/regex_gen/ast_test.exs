@@ -10,8 +10,8 @@ defmodule MoreStreamData.RegexGen.ASTTest do
       expected =
         {:union,
          {
-           {:union, {{:literal, "a"}, {:literal, "b"}}},
-           {:literal, "c"}
+           {:union, {{:literal, ~c"a"}, {:literal, ~c"b"}}},
+           {:literal, ~c"c"}
          }}
 
       assert matches_ast(pattern, expected)
@@ -38,15 +38,18 @@ defmodule MoreStreamData.RegexGen.ASTTest do
 
       expected =
         {:concat,
-         {{:literal, "a"},
-          {:quantifier, :plus, :greedy, {:union, {{:literal, "a"}, {:literal, "b"}}}}}}
+         {{:literal, ~c"a"},
+          {:quantifier, :plus, :greedy, {:union, {{:literal, ~c"a"}, {:literal, ~c"b"}}}}}}
 
       matches_ast(pattern, expected)
     end
 
     test "collapses sequences of literals" do
       pattern = ~r/ab(cd)*/
-      expected = {:concat, {{:literal, "ab"}, {:quantifier, :star, :greedy, {:literal, "cd"}}}}
+
+      expected =
+        {:concat, {{:literal, ~c"ab"}, {:quantifier, :star, :greedy, {:literal, ~c"cd"}}}}
+
       matches_ast(pattern, expected)
     end
 
@@ -55,7 +58,8 @@ defmodule MoreStreamData.RegexGen.ASTTest do
 
       expected =
         {:concat,
-         {{:literal, "abcdefg"}, {:character_class, :negative, [{:literal, ?a}, {:literal, ?b}]}}}
+         {{:literal, ~c"abcdefg"},
+          {:character_class, :negative, [{:literal, ?a}, {:literal, ?b}]}}}
 
       matches_ast(pattern, expected)
     end

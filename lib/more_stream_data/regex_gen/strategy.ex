@@ -30,6 +30,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
     tokens
     |> AST.parse()
     |> from_ast(options)
+    |> StreamData.map(&to_string/1)
     |> apply_caseless(options)
     |> apply_anchors(metadata, options)
   end
@@ -41,61 +42,53 @@ defmodule MoreStreamData.RegexGen.Strategy do
     default |> Keyword.merge(opts) |> Keyword.put(:regex_opts, Regex.opts(regex))
   end
 
-  defp from_ast({:literal, value}, _opts), do: StreamData.constant(AST.stringify(value))
+  defp from_ast({:literal, value}, _opts), do: StreamData.constant(value)
 
   defp from_ast({:union, {pat1, pat2}}, opts),
     do: StreamData.one_of([from_ast(pat1, opts), from_ast(pat2, opts)])
 
   defp from_ast({:concat, {left, right}}, opts) do
     StreamData.tuple({from_ast(left, opts), from_ast(right, opts)})
-    |> StreamData.map(fn {l, r} -> l <> r end)
+    |> StreamData.map(fn {l, r} -> to_list(l) ++ to_list(r) end)
   end
 
   # We still have to pass the modifiers to know what values to generate.
-  # - /u (unicode) => insetad of :ascii everything should be :printable
-  defp from_ast({:meta_sequence, :word}, _), do: StreamData.member_of(@word) |> to_str()
-  defp from_ast({:meta_sequence, :digit}, _), do: StreamData.integer(?0..?9) |> to_str()
-  defp from_ast({:meta_sequence, :blank}, _), do: StreamData.constant(32) |> to_str()
-  defp from_ast({:meta_sequence, :space}, _), do: StreamData.member_of(spaces()) |> to_str()
-  defp from_ast({:meta_sequence, :non_word}, _), do: StreamData.member_of(@non_word) |> to_str()
-
-  defp from_ast({:meta_sequence, :vertical_space}, _) do
-    StreamData.member_of(verticals()) |> to_str()
-  end
+  # '/u' -> use :printable from StreamData instead of ascii
+  defp from_ast({:meta_sequence, :word}, _), do: StreamData.member_of(@word)
+  defp from_ast({:meta_sequence, :digit}, _), do: StreamData.integer(?0..?9)
+  defp from_ast({:meta_sequence, :blank}, _), do: StreamData.constant(32)
+  defp from_ast({:meta_sequence, :space}, _), do: StreamData.member_of(spaces())
+  defp from_ast({:meta_sequence, :non_word}, _), do: StreamData.member_of(@non_word)
+  defp from_ast({:meta_sequence, :vertical_space}, _), do: StreamData.member_of(verticals())
 
   defp from_ast({:meta_sequence, :non_vertical_space}, opts) do
     ascii_codepoint(opts[:character_set])
     |> StreamData.filter(&(&1 not in verticals()))
-    |> to_str()
   end
 
   defp from_ast({:meta_sequence, :non_digit}, opts) do
     ascii_codepoint(opts[:character_set])
     |> StreamData.filter(&(&1 not in digit()))
-    |> to_str()
   end
 
   defp from_ast({:meta_sequence, :non_blank}, opts) do
-    ascii_codepoint(opts[:character_set]) |> StreamData.filter(&(&1 != 32)) |> to_str()
+    ascii_codepoint(opts[:character_set]) |> StreamData.filter(&(&1 != 32))
   end
 
   defp from_ast({:meta_sequence, :non_space}, opts) do
-    ascii_codepoint(opts[:character_set])
-    |> StreamData.filter(&(&1 not in spaces()))
-    |> to_str()
+    ascii_codepoint(opts[:character_set]) |> StreamData.filter(&(&1 not in spaces()))
   end
 
   defp from_ast(:any_character, opts) do
     if :dotall in opts[:regex_opts] do
-      ascii_codepoint(opts[:character_set]) |> to_str()
+      ascii_codepoint(opts[:character_set])
     else
       ascii_codepoint(opts[:character_set])
       |> StreamData.filter(&(&1 not in newlines()))
-      |> to_str()
     end
   end
 
-  defp from_ast({:range, {low, high}}, _), do: StreamData.integer(low..high) |> to_str()
+  defp from_ast({:range, {low, high}}, _), do: StreamData.integer(low..high)
 
   defp from_ast({:character_class, :positive, set}, opts) do
     set |> Enum.map(&from_ast(&1, opts)) |> StreamData.one_of()
@@ -103,14 +96,12 @@ defmodule MoreStreamData.RegexGen.Strategy do
 
   defp from_ast({:character_class, :negative, set}, _opts) do
     MapSet.difference(all_values(), all_values(set))
-    |> Enum.map(fn char -> <<char>> end)
-    |> Enum.filter(&String.printable?/1)
+    |> Enum.filter(&String.printable?(<<&1>>))
     |> StreamData.member_of()
   end
 
   defp from_ast({:quantifier, quantifier, _greedy_lazy, expression}, opts) do
     StreamData.list_of(from_ast(expression, opts), list_opts(quantifier))
-    |> StreamData.map(&Enum.join/1)
   end
 
   defp list_opts(:star), do: []
@@ -126,8 +117,6 @@ defmodule MoreStreamData.RegexGen.Strategy do
   defp spaces, do: MapSet.new(@whitespace)
   defp verticals, do: MapSet.new([?\n, ?\v, ?\r, ?\f])
   defp digit, do: MapSet.new(?0..?9)
-
-  defp to_str(stream), do: StreamData.map(stream, fn char -> <<char>> end)
 
   defp all_values(classes) when is_list(classes) do
     classes |> Enum.map(&all_values/1) |> Enum.reduce(&MapSet.union/2)
@@ -263,4 +252,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
   defp extended_ascii_range, do: 0..255
 
   defp printable?(c) when is_integer(c), do: String.printable?(<<c>>)
+
+  defp to_list(c) when is_list(c), do: c
+  defp to_list(c) when is_integer(c), do: [c]
 end
