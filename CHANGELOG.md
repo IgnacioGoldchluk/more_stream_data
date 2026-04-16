@@ -1,5 +1,11 @@
 ## Unreleased
 
+## 0.3.2 [2026-04-16]
+
+### Fixes
+- `from_regex/1`:
+    - Fix line and string anchors (`\A, ^, $, \z`) not working in unions. For example the regex `~r/^a$|^b$/` would previously raise
+
 ### New features
 - `from_regex/1`:
     - Limited support for atomic groups `(?>...)`. Generates values based on the first group option

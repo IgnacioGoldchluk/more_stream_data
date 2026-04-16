@@ -146,7 +146,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
   defp apply_caseless(regex_metadata_gen, opts) do
     if :caseless in opts[:regex_opts] do
       StreamData.bind(regex_metadata_gen, fn {regex_val, metadata} ->
-        StreamData.constant({Utils.recase(regex_val), metadata})
+        StreamData.tuple({Utils.recase(regex_val), StreamData.constant(metadata)})
       end)
     else
       regex_metadata_gen

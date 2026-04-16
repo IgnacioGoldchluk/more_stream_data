@@ -445,6 +445,14 @@ defmodule MoreStreamDataTest do
       end
     end
 
+    property "anchors in unions" do
+      regex = ~r/^a$|^b$/
+
+      check all str <- from_regex(regex) do
+        assert Regex.match?(regex, str)
+      end
+    end
+
     common_regexes = [
       # Decimal numbers
       ~r/^-?\d*(\.\d+)?$/,
