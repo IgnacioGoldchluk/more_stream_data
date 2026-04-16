@@ -1,5 +1,11 @@
 ## Unreleased
 
+## 0.3.3 [2026-04-16]
+
+### Fixes
+- `from_regex/1`:
+    - Fix regression for strings of length = 1
+
 ## 0.3.2 [2026-04-16]
 
 ### Fixes

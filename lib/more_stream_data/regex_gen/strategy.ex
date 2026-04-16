@@ -257,12 +257,17 @@ defmodule MoreStreamData.RegexGen.Strategy do
   defp to_list(c) when is_list(c), do: c
   defp to_list(c) when is_integer(c) or is_atom(c), do: [c]
 
-  defp to_string_and_metadata(delimiters_and_codepoints, options) do
+  defp to_string_and_metadata(delimiters_and_codepoints, options)
+       when is_list(delimiters_and_codepoints) do
     # Extract all delimiters from the beginning and end of string
     {starts, no_start} = Enum.split_while(delimiters_and_codepoints, &(&1 in Tokens.delimiters()))
     {ends, no_end} = Enum.reverse(no_start) |> Enum.split_with(&(&1 in Tokens.delimiters()))
     codepoints = Enum.reverse(no_end)
 
     {to_string(codepoints), Metadata.new(starts ++ ends, options[:regex_opts])}
+  end
+
+  defp to_string_and_metadata(single_char, options) when is_integer(single_char) do
+    to_string_and_metadata([single_char], options)
   end
 end

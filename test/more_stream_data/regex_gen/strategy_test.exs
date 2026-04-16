@@ -4,6 +4,14 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
 
   alias MoreStreamData.RegexGen.Strategy
 
+  property "single character regex" do
+    pattern = ~r/[a-zA-Z0-9_-]/
+
+    check all regex <- Strategy.from_regex(pattern, []) do
+      assert Regex.match?(pattern, regex)
+    end
+  end
+
   property "generates the same string when regex pattern with literals is provided" do
     check all regex <- StreamData.string(:alphanumeric, min_length: 1),
               str <- Strategy.from_regex(regex, []) do
