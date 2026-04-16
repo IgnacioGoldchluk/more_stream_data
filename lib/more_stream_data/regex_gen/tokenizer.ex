@@ -53,6 +53,10 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
           | quantifier()
           | character_class()
           | :concat
+          | :string_start
+          | :string_end
+          | :line_start
+          | :line_end
 
   @type tokenized :: [token()]
 
@@ -66,21 +70,11 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   # Base case, finished parsing
   defp tokenize(<<>>, acc), do: {:ok, add_concat(acc)}
 
-  # Error cases, "^", "\A", "$", "\z" not at the beginning/end of string
-  defp tokenize(<<?\\, ?A, rest::binary>>, []), do: tokenize(rest, [])
-
-  defp tokenize(<<?\\, ?A, rest::binary>>, _),
-    do: {:error, "'\\A' not at beginning of pattern", rest}
-
-  defp tokenize(<<?^, rest::binary>>, []), do: tokenize(rest, [])
-  defp tokenize(<<?^, rest::binary>>, _), do: {:error, "'^' not at beginning of pattern", rest}
-  defp tokenize(<<?\\, ?z>>, acc), do: tokenize(<<>>, acc)
-
-  defp tokenize(<<?\\, ?z, rest::binary>>, _),
-    do: {:error, "'\\z' not at end of pattern", rest}
-
-  defp tokenize(<<?$>>, acc), do: tokenize(<<>>, acc)
-  defp tokenize(<<?$, rest::binary>>, _), do: {:error, "'$' not at end of pattern", rest}
+  # Line and string delimiters
+  defp tokenize(<<?\\, ?A, rest::binary>>, acc), do: tokenize(rest, [:string_start | acc])
+  defp tokenize(<<?^, rest::binary>>, acc), do: tokenize(rest, [:line_start | acc])
+  defp tokenize(<<?$, rest::binary>>, acc), do: tokenize(rest, [:line_end | acc])
+  defp tokenize(<<?\\, ?z, rest::binary>>, acc), do: tokenize(rest, [:string_end | acc])
 
   # Parentheses
   # First check for unsupported cases or cases that we'll drop
@@ -325,6 +319,8 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   defp can_end?({:character_class, _, _}), do: true
   defp can_end?(:any_character), do: true
   defp can_end?({:quantifier, _, _}), do: true
+  defp can_end?(:line_start), do: true
+  defp can_end?(:string_start), do: true
   defp can_end?(_), do: false
 
   defp can_start?(:lparen), do: true
@@ -332,6 +328,8 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   defp can_start?({:meta_sequence, _}), do: true
   defp can_start?({:character_class, _, _}), do: true
   defp can_start?(:any_character), do: true
+  defp can_start?(:line_end), do: true
+  defp can_start?(:string_end), do: true
   defp can_start?(_), do: false
 
   defp consume_hex(acc, <<?}, rest::binary>>), do: {Enum.reverse(acc) |> to_string(), rest}

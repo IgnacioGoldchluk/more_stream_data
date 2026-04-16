@@ -4,7 +4,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
   alias MoreStreamData.RegexGen.{AST, Tokenizer}
   alias MoreStreamData.Utils
 
-  alias MoreStreamData.RegexGen.Tokenizer.Metadata
+  alias MoreStreamData.RegexGen.Tokenizer.{Metadata, Tokens}
 
   @word Enum.concat([Enum.to_list(?a..?z), Enum.to_list(?A..?Z), Enum.to_list(?0..?9), [?_]])
   @non_word 32..255
@@ -23,16 +23,14 @@ defmodule MoreStreamData.RegexGen.Strategy do
     source = Regex.source(regex)
     pattern = if(:extended in options[:regex_opts], do: remove_extended(source), else: source)
 
-    metadata = Metadata.new(pattern, Regex.opts(regex))
-
     {:ok, tokens} = Tokenizer.tokenize(pattern)
 
     tokens
     |> AST.parse()
     |> from_ast(options)
-    |> StreamData.map(&to_string/1)
+    |> StreamData.map(&to_string_and_metadata(&1, options))
     |> apply_caseless(options)
-    |> apply_anchors(metadata, options)
+    |> apply_anchors(options)
   end
 
   def from_regex(regex, opts) when is_binary(regex), do: from_regex(Regex.compile!(regex), opts)
@@ -104,6 +102,12 @@ defmodule MoreStreamData.RegexGen.Strategy do
     StreamData.list_of(from_ast(expression, opts), list_opts(quantifier))
   end
 
+  # Workaround for line/string delimiters
+  defp from_ast(delimiter, _)
+       when delimiter in [:line_start, :line_end, :string_start, :string_end] do
+    StreamData.constant(delimiter)
+  end
+
   defp list_opts(:star), do: []
   defp list_opts(:plus), do: [min_length: 1]
   defp list_opts(:question), do: [max_length: 1]
@@ -139,54 +143,51 @@ defmodule MoreStreamData.RegexGen.Strategy do
   defp not_values(other), do: MapSet.difference(all_values(), other)
 
   # Modifiers and metadata
-  defp apply_caseless(regex_gen, opts) do
-    if(:caseless in opts[:regex_opts], do: Utils.recase(regex_gen), else: regex_gen)
+  defp apply_caseless(regex_metadata_gen, opts) do
+    if :caseless in opts[:regex_opts] do
+      StreamData.bind(regex_metadata_gen, fn {regex_val, metadata} ->
+        StreamData.constant({Utils.recase(regex_val), metadata})
+      end)
+    else
+      regex_metadata_gen
+    end
   end
 
-  defp apply_anchors(regex_gen, metadata, opts) do
-    regex_gen
-    |> prepend_str(metadata, opts)
-    |> append_str(metadata, opts)
+  defp apply_anchors(regex_metadata_gen, opts) do
+    StreamData.bind(regex_metadata_gen, fn {regex_gen, metadata} ->
+      StreamData.tuple({to_prepend(metadata, opts), to_append(metadata, opts)})
+      |> StreamData.map(fn {prefix, suffix} -> Enum.join([prefix, regex_gen, suffix]) end)
+    end)
   end
 
   # Prepend cases
   # anchor_start?: true -> can't add anything
   # line_start?: true -> can add lines
   # both false -> can add anything
-  defp prepend_str(regex_gen, %Metadata{anchor_start?: true}, _), do: regex_gen
+  defp to_prepend(%Metadata{anchor_start?: true}, _), do: StreamData.constant("")
 
-  defp prepend_str(regex_gen, %Metadata{line_start?: true}, opts) do
-    StreamData.bind(regex_gen, fn str ->
-      ascii_string(opts[:character_set])
-      |> StreamData.list_of()
-      |> StreamData.map(fn lines -> Enum.join(lines ++ [str], "\n") end)
+  defp to_prepend(%Metadata{line_start?: true}, opts) do
+    StreamData.list_of(ascii_string(opts[:character_set]))
+    |> StreamData.map(fn
+      [] -> ""
+      lines -> Enum.join(lines, "\n") <> "\n"
     end)
   end
 
-  defp prepend_str(regex_gen, %Metadata{}, opts) do
-    StreamData.bind(regex_gen, fn str ->
-      ascii_string(opts[:character_set])
-      |> StreamData.map(fn text -> text <> str end)
-    end)
-  end
+  defp to_prepend(%Metadata{}, opts), do: ascii_string(opts[:character_set])
 
   # Same case as prepend
-  defp append_str(regex_gen, %Metadata{anchor_end?: true}, _), do: regex_gen
+  defp to_append(%Metadata{anchor_end?: true}, _), do: StreamData.constant("")
 
-  defp append_str(regex_gen, %Metadata{line_end?: true}, opts) do
-    StreamData.bind(regex_gen, fn str ->
-      ascii_string(opts[:character_set])
-      |> StreamData.list_of()
-      |> StreamData.map(fn lines -> Enum.join([str | lines], "\n") end)
+  defp to_append(%Metadata{line_end?: true}, opts) do
+    StreamData.list_of(ascii_string(opts[:character_set]))
+    |> StreamData.map(fn
+      [] -> ""
+      lines -> "\n" <> Enum.join(lines, "\n")
     end)
   end
 
-  defp append_str(regex_gen, %Metadata{}, opts) do
-    StreamData.bind(regex_gen, fn str ->
-      ascii_string(opts[:character_set])
-      |> StreamData.map(fn text -> str <> text end)
-    end)
-  end
+  defp to_append(%Metadata{}, opts), do: ascii_string(opts[:character_set])
 
   def remove_extended(pattern) when is_binary(pattern) do
     strip_ext(pattern, nil, <<>>)
@@ -254,5 +255,14 @@ defmodule MoreStreamData.RegexGen.Strategy do
   defp printable?(c) when is_integer(c), do: String.printable?(<<c>>)
 
   defp to_list(c) when is_list(c), do: c
-  defp to_list(c) when is_integer(c), do: [c]
+  defp to_list(c) when is_integer(c) or is_atom(c), do: [c]
+
+  defp to_string_and_metadata(delimiters_and_codepoints, options) do
+    # Extract all delimiters from the beginning and end of string
+    {starts, no_start} = Enum.split_while(delimiters_and_codepoints, &(&1 in Tokens.delimiters()))
+    {ends, no_end} = Enum.reverse(no_start) |> Enum.split_with(&(&1 in Tokens.delimiters()))
+    codepoints = Enum.reverse(no_end)
+
+    {to_string(codepoints), Metadata.new(starts ++ ends, options[:regex_opts])}
+  end
 end

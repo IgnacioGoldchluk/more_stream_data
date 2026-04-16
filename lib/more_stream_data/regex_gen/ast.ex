@@ -2,12 +2,18 @@ defmodule MoreStreamData.RegexGen.AST do
   @moduledoc false
   alias MoreStreamData.Tokenizer
 
+  @delimiters [:line_start, :line_end, :string_start, :string_end]
+
   @type ast ::
           {:literal, list(non_neg_integer())}
           | Tokenizer.character_class()
           | {:concat, {ast(), ast()}}
           | {:union, {ast(), ast()}}
           | :any_character
+          | :line_start
+          | :line_end
+          | :string_stat
+          | :string_end
           | Tokenizer.meta_sequence()
           | {:quantifier, Tokenizer.special_quantifier() | Tokenizer.range_quantifier(),
              :greedy | :lazy, ast()}
@@ -111,6 +117,7 @@ defmodule MoreStreamData.RegexGen.AST do
   defp operand?(:any_character), do: true
   defp operand?({:meta_sequence, _}), do: true
   defp operand?({:character_class, _, _}), do: true
+  defp operand?(char) when char in @delimiters, do: true
   defp operand?(_), do: false
 
   defp precedence(:concat), do: 2

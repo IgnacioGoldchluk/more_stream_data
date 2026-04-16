@@ -4,7 +4,9 @@ defmodule MoreStreamData.Utils do
   @doc """
   Randomly uppercases and downcases characters from the generated string
   """
-  @spec recase(StreamData.t(String.t())) :: StreamData.t(String.t())
+  @spec recase(StreamData.t(String.t()) | String.t()) :: StreamData.t(String.t())
+  def recase(string) when is_binary(string), do: string |> StreamData.constant() |> recase()
+
   def recase(str_gen) do
     str_gen
     |> StreamData.bind(fn str ->

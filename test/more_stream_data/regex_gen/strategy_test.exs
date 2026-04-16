@@ -15,7 +15,7 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
     check all opt1 <- StreamData.string(:alphanumeric, min_length: 1),
               opt2 <- StreamData.string(:alphanumeric, min_length: 2),
               opt3 <- StreamData.string(:alphanumeric, min_length: 3),
-              str <- Strategy.from_regex("^#{opt1}|#{opt2}|#{opt3}$", []) do
+              str <- Strategy.from_regex("^(#{opt1}|#{opt2}|#{opt3})$", []) do
       assert Enum.any?([opt1, opt2, opt3], fn opt -> opt == str end)
     end
   end
@@ -214,6 +214,14 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
   end
 
   describe "anchors" do
+    property "$ and ^ are allowed multiple times in unions" do
+      regex = ~r/^asd$|^def$/
+
+      check all str <- Strategy.from_regex(regex, []) do
+        assert Regex.match?(regex, str)
+      end
+    end
+
     property "can generate additional text after regex if '$' is not specified" do
       check all str <- Strategy.from_regex(~r/^asd/, []) do
         assert String.starts_with?(str, "asd")

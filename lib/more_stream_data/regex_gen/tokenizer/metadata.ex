@@ -9,41 +9,26 @@ defmodule MoreStreamData.RegexGen.Tokenizer.Metadata do
           line_start?: boolean()
         }
 
-  def new(pattern, options) when is_binary(pattern) and is_list(options) do
+  def new(delimiters, options) when is_list(delimiters) and is_list(options) do
     %__MODULE__{
-      anchor_start?: anchor_start?(pattern, options),
-      anchor_end?: anchor_end?(pattern, options),
-      line_start?: line_start?(pattern, options),
-      line_end?: line_end?(pattern, options)
+      anchor_start?: anchor_start?(delimiters, options),
+      anchor_end?: anchor_end?(delimiters, options),
+      line_start?: line_start?(delimiters, options),
+      line_end?: line_end?(delimiters, options)
     }
   end
 
-  def new(regex) when is_struct(regex, Regex), do: new(Regex.source(regex), Regex.opts(regex))
-
-  # Both `anchor_end?` and `line_end?` have bugs because the string
-  # might end with the literal backslash + z as ~r/\\z/ which matches "\z",
-  # same as ~r/\\$/ which matches "\$". Highly unlikely but in case we hit this in prod
-  # we have to build the metadata AFTER tokenizing the regex
-  defp anchor_end?(pattern, options) do
-    String.ends_with?(pattern, "\\z") or
-      (ends_with_dollar?(pattern) and
-         not Enum.member?(options, :multiline))
+  defp anchor_end?(delimiters, options) do
+    :string_end in delimiters or
+      (:line_end in delimiters and not Enum.member?(options, :multiline))
   end
 
-  defp line_end?(pattern, options) do
-    ends_with_dollar?(pattern) and Enum.member?(options, :multiline)
-  end
+  defp line_end?(delimiters, options), do: :line_end in delimiters and :multiline in options
 
-  defp line_start?(pattern, options) do
-    String.starts_with?(pattern, "^") and Enum.member?(options, :multiline)
-  end
+  defp line_start?(delimiters, options), do: :line_start in delimiters and :multiline in options
 
-  defp anchor_start?(pattern, options) do
-    Enum.member?(options, :firstline) or String.starts_with?(pattern, "\\A") or
-      (String.starts_with?(pattern, "^") and not Enum.member?(options, :multiline))
-  end
-
-  defp ends_with_dollar?(pattern) do
-    String.ends_with?(pattern, "$") and not String.ends_with?(pattern, "\\$")
+  defp anchor_start?(delimiters, options) do
+    :firstline in options or :string_start in delimiters or
+      (:line_start in delimiters and not Enum.member?(options, :multiline))
   end
 end

@@ -20,4 +20,6 @@ defmodule MoreStreamData.RegexGen.Tokenizer.Tokens do
 
   def quantifier_mode_lazy, do: :lazy
   def quantifier_mode_greedy, do: :greedy
+
+  def delimiters, do: [:line_start, :line_end, :string_start, :string_end]
 end

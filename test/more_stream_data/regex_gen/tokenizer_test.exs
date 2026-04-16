@@ -96,10 +96,12 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
   end
 
   describe "metadata" do
-    test "ignores '^' at the beginning of the pattern" do
+    test "includes '^' at the beginning of the pattern" do
       pattern = ~r/^[A-Z]+_[a-z]+/ |> Regex.source()
 
       expected = [
+        :line_start,
+        :concat,
         {:character_class, :positive, [{:range, {65, 90}}]},
         {:quantifier, :plus, :greedy},
         :concat,
@@ -112,7 +114,7 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
       assert matches_tokens(pattern, expected)
     end
 
-    test "ignores '$' at the end of the pattern" do
+    test "includes '$' at the end of the pattern" do
       pattern = ~r/[A-Z]+_[a-z]+$/ |> Regex.source()
 
       expected = [
@@ -122,26 +124,41 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
         {:literal, ?_},
         :concat,
         {:character_class, :positive, [range: {?a, ?z}]},
-        {:quantifier, :plus, :greedy}
+        {:quantifier, :plus, :greedy},
+        :concat,
+        :line_end
       ]
 
       assert matches_tokens(pattern, expected)
     end
 
-    test "returns error if '^' is unescaped and present in the pattern" do
-      pattern = ~r/^asd^e/ |> Regex.source()
-      assert {:error, "'^' not at beginning of pattern", _} = Tokenizer.tokenize(pattern)
-    end
+    test "line delimiters in unions" do
+      pattern = ~r/^a$|^b$/
 
-    test "returns error if '$' is unescaped and present in the pattern" do
-      pattern = ~r/asd$e/ |> Regex.source()
-      assert {:error, "'$' not at end of pattern", _} = Tokenizer.tokenize(pattern)
+      expected =
+        [
+          :line_start,
+          :concat,
+          {:literal, ?a},
+          :concat,
+          :line_end,
+          :union,
+          :line_start,
+          :concat,
+          {:literal, ?b},
+          :concat,
+          :line_end
+        ]
+
+      assert matches_tokens(pattern, expected)
     end
 
     test "treats '^' and '$' as literal characters when escaped" do
       pattern = ~r/^ab\^cd\$ef$/
 
       expected = [
+        :line_start,
+        :concat,
         {:literal, ?a},
         :concat,
         {:literal, ?b},
@@ -156,7 +173,9 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
         :concat,
         {:literal, ?e},
         :concat,
-        {:literal, ?f}
+        {:literal, ?f},
+        :concat,
+        :line_end
       ]
 
       assert matches_tokens(pattern, expected)

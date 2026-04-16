@@ -387,11 +387,12 @@ defmodule MoreStreamDataTest do
   end
 
   describe "from_regex/1" do
-    property "/f modifier forces the regex to match at the beginning" do
+    property "/f modifier forces the regex to match in the first line" do
       pattern = ~r/very_unlikely_that_thisgets_duplicated/f
 
       check all str <- from_regex(pattern) do
-        assert String.starts_with?(str, "very_unlikely_that_thisgets_duplicated")
+        [first | _] = String.split(str, "\n")
+        assert String.contains?(first, "very_unlikely_that_thisgets_duplicated")
       end
     end
 
