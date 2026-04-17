@@ -268,6 +268,24 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
       assert matches_tokens(pattern, expected)
     end
 
+    test "union '|' adds empty string when at the beginning or end of non-characters" do
+      pattern = ~r/^(|a)$/
+
+      expected = [
+        :line_start,
+        :concat,
+        :lparen,
+        :empty,
+        :union,
+        {:literal, ?a},
+        :rparen,
+        :concat,
+        :line_end
+      ]
+
+      assert matches_tokens(pattern, expected)
+    end
+
     test ". and | are parsed as special characters" do
       pattern = ~r/a.|.b/
 

@@ -46,6 +46,7 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
           :lparen
           | :rparen
           | :union
+          | :empty
           | :any_character
           | range()
           | literal()
@@ -68,7 +69,9 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   def tokenize(pattern) when is_binary(pattern), do: tokenize(pattern, [])
 
   # Base case, finished parsing
-  defp tokenize(<<>>, acc), do: {:ok, add_concat(acc)}
+  defp tokenize(<<>>, acc) do
+    {:ok, acc |> add_empty() |> Enum.reverse() |> add_concat()}
+  end
 
   # Line and string delimiters
   defp tokenize(<<?\\, ?A, rest::binary>>, acc), do: tokenize(rest, [:string_start | acc])
@@ -298,6 +301,20 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
         {s, quantifier(String.to_integer(low), String.to_integer(high), quantifier_mode_lazy())}
     end
   end
+
+  defp add_empty(tokenized), do: add_empty(tokenized, [])
+
+  defp add_empty([], acc), do: acc
+
+  defp add_empty([:union, prec | rest], acc) when prec in [:lparen, :line_start, :string_start] do
+    add_empty(rest, [prec, :empty, :union | acc])
+  end
+
+  defp add_empty([suc, :union | rest], acc) when suc in [:rparen, :line_end, :string_end] do
+    add_empty(rest, [:union, :empty, suc | acc])
+  end
+
+  defp add_empty([head | rest], acc), do: add_empty(rest, [head | acc])
 
   defp add_concat(tokenized), do: add_concat(tokenized, [])
   defp add_concat([], acc), do: acc

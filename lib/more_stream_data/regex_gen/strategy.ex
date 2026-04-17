@@ -40,6 +40,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
     default |> Keyword.merge(opts) |> Keyword.put(:regex_opts, Regex.opts(regex))
   end
 
+  defp from_ast(:empty, _), do: StreamData.constant([])
   defp from_ast({:literal, value}, _opts), do: StreamData.constant(value)
 
   defp from_ast({:union, {pat1, pat2}}, opts),

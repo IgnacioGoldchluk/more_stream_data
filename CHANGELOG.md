@@ -1,5 +1,12 @@
 ## Unreleased
 
+## 0.3.4 [2026-04-17]
+
+### Fixes
+- `from_regex/1`:
+    - Union of empty string and pattern. For example `~r/^(|foo)$/` which matches the empty string `""` or the literal `"foo"` would previously raise
+    - Edge case of `~r//` failing
+
 ## 0.3.3 [2026-04-16]
 
 ### Fixes

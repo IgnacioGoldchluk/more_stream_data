@@ -9,6 +9,7 @@ defmodule MoreStreamData.RegexGen.AST do
           | Tokenizer.character_class()
           | {:concat, {ast(), ast()}}
           | {:union, {ast(), ast()}}
+          | :empty
           | :any_character
           | :line_start
           | :line_end
@@ -24,8 +25,10 @@ defmodule MoreStreamData.RegexGen.AST do
   """
   @spec parse([Tokenizer.token()]) :: ast()
   def parse(tokens) do
-    [result] = tokens |> build_queue_and_stack() |> reduce_all()
-    collapse_literals(result)
+    case tokens |> build_queue_and_stack() |> reduce_all() do
+      [result] -> collapse_literals(result)
+      [] -> :empty
+    end
   end
 
   defp build_queue_and_stack(tokens), do: Enum.reduce(tokens, {[], []}, &handle_token/2)
@@ -114,6 +117,7 @@ defmodule MoreStreamData.RegexGen.AST do
   defp merge_concat(l, r), do: {:concat, {l, r}}
 
   defp operand?({:literal, _}), do: true
+  defp operand?(:empty), do: true
   defp operand?(:any_character), do: true
   defp operand?({:meta_sequence, _}), do: true
   defp operand?({:character_class, _, _}), do: true
