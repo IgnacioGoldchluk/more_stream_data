@@ -26,7 +26,7 @@ defmodule MyTestMoule do
   use ExUnit.Case
   use ExUnitProperties
 
-  property "generates numbers greater than or equal to the minimum" do
+  property "strings matching regular expression" do
     regex = ~r/^[A-Z]_[a-z0-9]+$/
 
     check all string <- MoreStreamData.from_regex(regex) do
