@@ -1,5 +1,10 @@
 ## Unreleased
 
+## 0.4.0 [2026-04-21]
+
+### New features
+- `sample/2`: Samples elements from an input enum in random order
+
 ## 0.3.4 [2026-04-17]
 
 ### Fixes

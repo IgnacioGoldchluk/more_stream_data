@@ -695,4 +695,34 @@ defmodule MoreStreamData do
   def from_proto(module) when is_atom(module) do
     MoreStreamData.Protobuf.from_proto(module)
   end
+
+  @doc """
+  Returns a list of elements from the input enum in random order.
+
+  This function can return duplicates if the input enum contains duplicate elements.
+
+  ## Options
+
+    - `:min_length` - (`t:non_neg_integer/0`) the minimum length of the list. Defaults to 0
+    - `:max_length` - (`t:non_neg_integer/0`) the maximum length of the list. Defaults to
+    the length of the input enum.
+  """
+  @spec sample(Enum.t()) :: StreamData.t(list())
+  def sample(enum, opts \\ []) do
+    elements = Enum.to_list(enum)
+
+    opts =
+      opts
+      |> Keyword.put_new(:min_length, 0)
+      |> Keyword.put_new_lazy(:max_length, fn -> length(elements) end)
+
+    if opts[:min_length] > opts[:max_length] do
+      raise ArgumentError, "min_length > max_length: #{opts[:min_length]} > #{opts[:max_length]}"
+    end
+
+    StreamData.tuple(
+      {StreamData.shuffle(elements), StreamData.integer(opts[:min_length]..opts[:max_length])}
+    )
+    |> StreamData.map(fn {shuffled, to_take} -> Enum.take(shuffled, to_take) end)
+  end
 end

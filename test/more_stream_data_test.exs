@@ -571,4 +571,24 @@ defmodule MoreStreamDataTest do
       end
     end
   end
+
+  describe "sample/1" do
+    test "returns always empty list when enum is empty" do
+      assert MoreStreamData.sample([]) |> Enum.take(10) |> Enum.all?(&Enum.empty?/1)
+    end
+
+    test "can return duplicate elements if the enum contains duplicates" do
+      assert MoreStreamData.sample([1, 1], min_length: 2)
+             |> Enum.take(10)
+             |> Enum.all?(&(&1 == [1, 1]))
+    end
+
+    property "samples from list" do
+      enum = Enum.map(1..1000, &to_string/1)
+
+      check all samples <- MoreStreamData.sample(enum) do
+        Enum.all?(samples, &(&1 in enum))
+      end
+    end
+  end
 end

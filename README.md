@@ -13,7 +13,7 @@ Add `more_stream_data` to your list of dependencies in `mix.exs`
 ```elixir
 def deps do
   [
-    {:more_stream_data, "~> 0.3", only: :test}
+    {:more_stream_data, "~> 0.4", only: :test}
   ]
 end
 ```
@@ -27,8 +27,10 @@ defmodule MyTestMoule do
   use ExUnitProperties
 
   property "generates numbers greater than or equal to the minimum" do
-    check all number <- MoreStreamData.more_integer(min: 10) do
-      assert number >= 10
+    regex = ~r/^[A-Z]_[a-z0-9]+$/
+
+    check all string <- MoreStreamData.from_regex(regex) do
+      assert Regex.match?(regex, string)
     end
   end
 end
