@@ -24,12 +24,14 @@ defmodule MoreStreamData.RegexGen.Strategy do
     pattern = if(:extended in options[:regex_opts], do: remove_extended(source), else: source)
 
     {:ok, tokens} = Tokenizer.tokenize(pattern)
+    {non_tokens, tokens} = split_tokens(tokens)
 
     tokens
     |> AST.parse()
     |> from_ast(options)
     |> StreamData.map(&to_string_and_metadata(&1, options))
     |> apply_caseless(options)
+    |> filter_if_zero_width_assertions(non_tokens, regex)
     |> apply_anchors(options)
   end
 
@@ -270,5 +272,31 @@ defmodule MoreStreamData.RegexGen.Strategy do
 
   defp to_string_and_metadata(single_char, options) when is_integer(single_char) do
     to_string_and_metadata([single_char], options)
+  end
+
+  defp split_tokens(tokens) when is_list(tokens) do
+    {non_tokens, tokens} =
+      Enum.split_with(tokens, fn
+        {:non_token, _} -> true
+        _ -> false
+      end)
+
+    {Enum.map(non_tokens, fn {:non_token, val} -> val end), tokens}
+  end
+
+  defp filter_if_zero_width_assertions(gen, non_tokens, regex) do
+    # We cannot generate from here based on zero width assertions because
+    # the algorithm generates per token, it cannot look ahead or behind and
+    # perform a conditional filtering. So instead what we do is, if the regex
+    # contains a lookaround, we generate the regex normally, and then do a
+    # match filter, because it is expected that the supported zero width assertions
+    # are very unlikely to throw non-matching regexes
+    supported_zwa = [:negative_lookahead, :negaive_lookbehind]
+
+    if Enum.any?(supported_zwa, & &1 in non_tokens) do
+      StreamData.filter(gen, fn {str, _metadata} -> Regex.match?(regex, str) end)
+    else
+      gen
+    end
   end
 end

@@ -459,17 +459,30 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
 
       assert matches_tokens(pattern, expected)
     end
+
+    test "negative lookahead returns non_token" do
+      pattern = ~r/^(?!a|b)\w[-\w_]*$/
+
+      expected = [
+              :line_start,
+              :concat,
+              {:non_token, :negative_lookahead},
+              {:meta_sequence, :word},
+              :concat,
+              {:character_class, :positive, [literal: ?-, meta_sequence: :word, literal: ?_]},
+              {:quantifier, :star, :greedy},
+              :concat,
+              :line_end
+            ]
+
+      assert matches_tokens(pattern, expected)
+    end
   end
 
   describe "unsupported options" do
     test "positive lookahead returns error" do
       pattern = ~r/a(?=b)c/ |> Regex.source()
       assert {:error, "positive lookahead unsupported", _} = Tokenizer.tokenize(pattern)
-    end
-
-    test "negative lookahead returns error" do
-      pattern = ~r/a(?!b)c/ |> Regex.source()
-      assert {:error, "negative lookahead unsupported", _} = Tokenizer.tokenize(pattern)
     end
 
     test "positive lookbehind returns error" do
