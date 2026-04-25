@@ -192,11 +192,31 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   # Nothing else matched, treat as literal
   defp tokenize(<<char, rest::binary>>, acc), do: tokenize(rest, [literal(char) | acc])
 
-  defp discard_zero_width_assertion(<<?\\, ?), rest::binary>>),
-    do: discard_zero_width_assertion(rest)
+  # We can have nested groups inside, keep track of how many rparens left we have to see
+  # until reaching the last one
+  defp discard_zero_width_assertion(str, rparens_left \\ 0)
 
-  defp discard_zero_width_assertion(<<?), rest::binary>>), do: rest
-  defp discard_zero_width_assertion(<<_, rest::binary>>), do: discard_zero_width_assertion(rest)
+  defp discard_zero_width_assertion(<<?\\, ?), rest::binary>>, rparens_left) do
+    discard_zero_width_assertion(rest, rparens_left)
+  end
+
+  defp discard_zero_width_assertion(<<?\\, ?(, rest::binary>>, rparens_left) do
+    discard_zero_width_assertion(rest, rparens_left)
+  end
+
+  defp discard_zero_width_assertion(<<?(, rest::binary>>, rparens_left) do
+    discard_zero_width_assertion(rest, rparens_left + 1)
+  end
+
+  defp discard_zero_width_assertion(<<?), rest::binary>>, 0), do: rest
+
+  defp discard_zero_width_assertion(<<?), rest::binary>>, rparens_left) when rparens_left > 0 do
+    discard_zero_width_assertion(rest, rparens_left - 1)
+  end
+
+  defp discard_zero_width_assertion(<<_, rest::binary>>, rparens_left) do
+    discard_zero_width_assertion(rest, rparens_left)
+  end
 
   defp discard_named_group(<<?>, rest::binary>>), do: rest
   defp discard_named_group(<<_, rest::binary>>), do: discard_named_group(rest)

@@ -1,5 +1,12 @@
 ## Unreleased
 
+## 0.5.1 [2026-04-25]
+
+### Fixes
+- `from_regex/1`:
+    - Fix group inside negative lookahead and negative lookbehind creating invalid AST
+
+
 ## 0.5.0 [2026-04-25]
 
 ### New features

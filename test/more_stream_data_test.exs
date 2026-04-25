@@ -485,7 +485,9 @@ defmodule MoreStreamDataTest do
       # Random negative lookbehind
       ~r/^(?<!\$)\d+/,
       # JSON Pointer
-      ~r/^#?(|(\/([^\/~]|~[01])*)*)$/
+      ~r/^#?(|(\/([^\/~]|~[01])*)*)$/,
+      # Lookaround with group inside
+      ~r/^(?![ \t\n]*\(default(.*)\))[\s\S]*/
     ]
 
     for regex <- common_regexes do
