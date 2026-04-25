@@ -88,12 +88,14 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   defp tokenize(<<?(, ??, ?<, ?=, r::binary>>, _),
     do: {:error, "positive lookbehind unsupported", r}
 
-  defp tokenize(<<?(, ??, ?<, ?!, r::binary>>, _),
-    do: {:error, "negative lookbehind unsupported", r}
-
   # Negative lookahead, ignore and pray
   defp tokenize(<<?(, ??, ?!, rest::binary>>, acc) do
-    tokenize(discard_negative_lookahead(rest), [{:non_token, :negative_lookahead} | acc])
+    tokenize(discard_zero_width_assertion(rest), [{:non_token, :negative_lookahead} | acc])
+  end
+
+  # Negative lookbehind, ignore and pray too
+  defp tokenize(<<?(, ??, ?<, ?!, rest::binary>>, acc) do
+    tokenize(discard_zero_width_assertion(rest), [{:non_token, :negative_lookbehind} | acc])
   end
 
   defp tokenize(<<?(, ??, ?>, rest::binary>>, acc), do: tokenize(atomic_group(rest, ~c"("), acc)
@@ -190,9 +192,11 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   # Nothing else matched, treat as literal
   defp tokenize(<<char, rest::binary>>, acc), do: tokenize(rest, [literal(char) | acc])
 
-  defp discard_negative_lookahead(<<?\\, ?), rest::binary>>), do: discard_negative_lookahead(rest)
-  defp discard_negative_lookahead(<<?), rest::binary>>), do: rest
-  defp discard_negative_lookahead(<<_, rest::binary>>), do: discard_negative_lookahead(rest)
+  defp discard_zero_width_assertion(<<?\\, ?), rest::binary>>),
+    do: discard_zero_width_assertion(rest)
+
+  defp discard_zero_width_assertion(<<?), rest::binary>>), do: rest
+  defp discard_zero_width_assertion(<<_, rest::binary>>), do: discard_zero_width_assertion(rest)
 
   defp discard_named_group(<<?>, rest::binary>>), do: rest
   defp discard_named_group(<<_, rest::binary>>), do: discard_named_group(rest)

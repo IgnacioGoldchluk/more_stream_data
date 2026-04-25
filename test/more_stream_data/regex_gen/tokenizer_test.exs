@@ -460,20 +460,33 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
       assert matches_tokens(pattern, expected)
     end
 
+    test "negative lookbehind returns non_token" do
+      pattern = ~r/a(?<!b)c/
+
+      expected = [
+        {:literal, ?a},
+        :concat,
+        {:non_token, :negative_lookbehind},
+        {:literal, ?c}
+      ]
+
+      assert matches_tokens(pattern, expected)
+    end
+
     test "negative lookahead returns non_token" do
       pattern = ~r/^(?!a|b)\w[-\w_]*$/
 
       expected = [
-              :line_start,
-              :concat,
-              {:non_token, :negative_lookahead},
-              {:meta_sequence, :word},
-              :concat,
-              {:character_class, :positive, [literal: ?-, meta_sequence: :word, literal: ?_]},
-              {:quantifier, :star, :greedy},
-              :concat,
-              :line_end
-            ]
+        :line_start,
+        :concat,
+        {:non_token, :negative_lookahead},
+        {:meta_sequence, :word},
+        :concat,
+        {:character_class, :positive, [literal: ?-, meta_sequence: :word, literal: ?_]},
+        {:quantifier, :star, :greedy},
+        :concat,
+        :line_end
+      ]
 
       assert matches_tokens(pattern, expected)
     end
@@ -488,11 +501,6 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
     test "positive lookbehind returns error" do
       pattern = ~r/a(?<=b)c/ |> Regex.source()
       assert {:error, "positive lookbehind unsupported", _} = Tokenizer.tokenize(pattern)
-    end
-
-    test "negative lookbehind returns error" do
-      pattern = ~r/a(?<!b)c/ |> Regex.source()
-      assert {:error, "negative lookbehind unsupported", _} = Tokenizer.tokenize(pattern)
     end
 
     test "recursive references return error" do

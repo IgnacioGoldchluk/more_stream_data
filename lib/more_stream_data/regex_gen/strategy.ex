@@ -293,7 +293,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
     # are very unlikely to throw non-matching regexes
     supported_zwa = [:negative_lookahead, :negaive_lookbehind]
 
-    if Enum.any?(supported_zwa, & &1 in non_tokens) do
+    if Enum.any?(supported_zwa, &(&1 in non_tokens)) do
       StreamData.filter(gen, fn {str, _metadata} -> Regex.match?(regex, str) end)
     else
       gen

@@ -482,6 +482,8 @@ defmodule MoreStreamDataTest do
       ~r//,
       # JSON API thing
       ~r/^(?!relationships$|links$)\w[-\w_]*$/,
+      # Random negative lookbehind
+      ~r/^(?<!\$)\d+/,
       # JSON Pointer
       ~r/^#?(|(\/([^\/~]|~[01])*)*)$/
     ]

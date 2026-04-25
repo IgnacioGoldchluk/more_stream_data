@@ -13,7 +13,7 @@ Add `more_stream_data` to your list of dependencies in `mix.exs`
 ```elixir
 def deps do
   [
-    {:more_stream_data, "~> 0.4", only: :test}
+    {:more_stream_data, "~> 0.5", only: :test}
   ]
 end
 ```
@@ -58,9 +58,9 @@ The goal is to port [Python's Hypothesis](https://hypothesis.readthedocs.io/en/l
     - [x] Atomic groups: Always matches the first option
     - [ ] Lookarounds
       - [ ] Positive lookahead
-      - [ ] Negative lookahead
+      - [x] Negative lookahead
       - [ ] Positive lookbehind
-      - [ ] Negative lookbehind
+      - [x] Negative lookbehind
     - [ ] Modifiers
       - [x] Case insensitive `/i`
       - [x] Extended `/x`

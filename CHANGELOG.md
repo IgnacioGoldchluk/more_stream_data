@@ -1,5 +1,11 @@
 ## Unreleased
 
+## 0.5.0 [2026-04-25]
+
+### New features
+- `from_regex/1`:
+    - Add support for negative lookahead and negative lookbehind assertions
+
 ### Fixes
 - `from_regex/1`:
     - Treat escaped `/` character as literal instead of returning error
