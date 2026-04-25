@@ -5,7 +5,7 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
 
   @quantifiers ~c"*+?"
   @meta_sequences ~c"wWdDsShHvV"
-  @special_symbols ~c"[]{}()|.^$\\-" ++ @quantifiers
+  @special_symbols ~c"[]{}()|.^$\\-/" ++ @quantifiers
 
   # Symbols that have a different value when preceded by "\"
   @escaped_symbols %{

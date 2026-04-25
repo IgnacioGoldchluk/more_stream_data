@@ -706,6 +706,9 @@ defmodule MoreStreamData do
     - `:min_length` - (`t:non_neg_integer/0`) the minimum length of the list. Defaults to 0
     - `:max_length` - (`t:non_neg_integer/0`) the maximum length of the list. Defaults to
     the length of the input enum.
+
+  ## Shrinking
+  Shrinks towards smaller lists and in the same order as the original input
   """
   @spec sample(Enum.t()) :: StreamData.t(list())
   def sample(enum, opts \\ []) do

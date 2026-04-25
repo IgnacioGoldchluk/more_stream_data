@@ -4,6 +4,17 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
 
   alias MoreStreamData.RegexGen.Strategy
 
+  describe "special characters" do
+    test "escaped '/' is treated as literal character" do
+      pattern = ~r/^http:\/\/www\.[a-z]+\.com$/
+
+      pattern
+      |> Strategy.from_regex([])
+      |> Enum.take(10)
+      |> Enum.each(fn str -> assert Regex.match?(pattern, str) end)
+    end
+  end
+
   property "single character regex" do
     pattern = ~r/[a-zA-Z0-9_-]/
 

@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Fixes
+- `from_regex/1`:
+    - Treat escaped `/` character as literal instead of returning error
+
 ## 0.4.0 [2026-04-21]
 
 ### New features
