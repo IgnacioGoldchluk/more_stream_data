@@ -363,7 +363,7 @@ defmodule MoreStreamDataTest do
     end
   end
 
-  describe "email/0" do
+  describe "email/1" do
     property "generates valid emails" do
       check all email <- email() do
         assert String.length(email) <= 254
@@ -374,6 +374,20 @@ defmodule MoreStreamDataTest do
         refute Regex.match?(~r/\.{2,}/, local)
         assert String.contains?(domain, ".")
       end
+    end
+
+    property "generates emails bounded by max_length" do
+      max_length = 22
+
+      check all email <- email(max_length: max_length) do
+        assert String.length(email) <= max_length
+      end
+    end
+
+    test "raises if max_length < 6" do
+      [shortest_email] = email(max_length: 6) |> Enum.take(1)
+      assert String.length(shortest_email) == 6
+      assert_raise ArgumentError, fn -> email(max_length: 5) |> Enum.take(1) end
     end
 
     property "generates with specified domains" do

@@ -13,7 +13,7 @@ Add `more_stream_data` to your list of dependencies in `mix.exs`
 ```elixir
 def deps do
   [
-    {:more_stream_data, "~> 0.5", only: :test}
+    {:more_stream_data, "~> 0.6", only: :test}
   ]
 end
 ```

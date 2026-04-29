@@ -1,5 +1,11 @@
 ## Unreleased
 
+## 0.6.0 [2026-04-29]
+
+### New features
+- `email/1`
+    - Add `:max_length` option
+
 ## 0.5.1 [2026-04-25]
 
 ### Fixes

@@ -2,7 +2,7 @@ defmodule MoreStreamData.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/IgnacioGoldchluk/more_stream_data"
-  @version "0.5.1"
+  @version "0.6.0"
 
   def project do
     [

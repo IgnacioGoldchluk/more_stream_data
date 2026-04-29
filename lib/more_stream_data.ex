@@ -657,14 +657,29 @@ defmodule MoreStreamData do
 
     - `:domains` - (`StreamData.t(String.t())`) strategy that generates domains. If not
     provided then `domain/1` is used.
+    - `:max_length` - (`t:pos_integer/0`) maximum length of the entire email. Must be
+    at least `6`, since the shortest possible email is of the form `a@b.cd`. Defaults
+    to the maximum email length allowed (254)
+
 
   ## Shrinking
   Shrinks towards shorter local parts. The domain part follows `:domains` behaviour.
   """
   @spec email(Keyword.t()) :: StreamData.t(String.t())
   def email(opts \\ []) do
+    max_length = Keyword.get(opts, :max_length, 254)
+
+    if max_length < 6 do
+      raise ArgumentError, ":max_length must be >= 6, got: #{max_length}"
+    end
+
+    # a@b.cd ->
+
+    # Since the shortest domain part is '@b.cd' which contains 5 characters,
+    # we cannot generate local parts longer than max_length - 5. Additionally the local
+    # part cannot be longer than 64 characters
     email_chars()
-    |> StreamData.string(min_length: 1, max_length: 64)
+    |> StreamData.string(min_length: 1, max_length: min(64, max_length - 5))
     |> StreamData.bind_filter(fn local_non_validated ->
       local = String.trim(local_non_validated, ".") |> String.replace(~r/\.{2,}/, ".")
 
@@ -672,10 +687,13 @@ defmodule MoreStreamData do
         :skip
       else
         # Ensure there is at least one dot in the email. Although "john@com" is technically valid,
-        # it is not practically valid, and we always want "john@${a}.${b}"
+        # it is not practically valid, and we always want "john@${a}.${b}".
+        # For the domain length, we have to subtract the local part, and 1 extra value for @
         gen =
           opts
-          |> Keyword.get_lazy(:domains, fn -> domain(max_length: 253 - String.length(local)) end)
+          |> Keyword.get_lazy(:domains, fn ->
+            domain(max_length: max_length - 1 - String.length(local))
+          end)
           |> StreamData.filter(fn domain -> String.contains?(domain, ".") end)
           |> StreamData.bind(fn domain -> StreamData.constant("#{local}@#{domain}") end)
 
