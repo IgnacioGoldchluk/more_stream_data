@@ -501,7 +501,9 @@ defmodule MoreStreamDataTest do
       # JSON Pointer
       ~r/^#?(|(\/([^\/~]|~[01])*)*)$/,
       # Lookaround with group inside
-      ~r/^(?![ \t\n]*\(default(.*)\))[\s\S]*/
+      ~r/^(?![ \t\n]*\(default(.*)\))[\s\S]*/,
+      # utf8 codepoints, taken from Poetry
+      ~r/^(?:[- .,\w\d'’\"():&]+)(?: <(?:.+?)>)?/
     ]
 
     for regex <- common_regexes do
