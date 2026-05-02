@@ -12,6 +12,9 @@ defmodule MoreStreamData.RegexGen.Strategy do
               String.printable?(<<char>>) and not Enum.member?(@word, char)
             end)
 
+  @extended_ascii Enum.to_list(0..255)
+  @extended_ascii_printable Enum.filter(@extended_ascii, &String.printable?(<<&1>>))
+
   @whitespace ~c"\r\n\t\v\f\s"
 
   @doc """
@@ -240,22 +243,11 @@ defmodule MoreStreamData.RegexGen.Strategy do
   # Inside class we have to keep everything
   defp strip_ext(<<chr, rest::binary>>, :class, acc), do: strip_ext(rest, :class, acc <> <<chr>>)
 
-  defp ascii_string(:all), do: StreamData.string(extended_ascii())
-
-  defp ascii_string(:printable) do
-    extended_ascii() |> Enum.filter(&printable?/1) |> StreamData.string()
-  end
+  defp ascii_string(:all), do: StreamData.string(@extended_ascii)
+  defp ascii_string(:printable), do: StreamData.string(@extended_ascii_printable)
 
   defp ascii_codepoint(:all), do: StreamData.integer(0..255)
-
-  defp ascii_codepoint(:printable),
-    do: Enum.filter(0..255, &printable?/1) |> StreamData.member_of()
-
-  defp extended_ascii, do: Enum.to_list(extended_ascii_range())
-
-  defp extended_ascii_range, do: 0..255
-
-  defp printable?(c) when is_integer(c), do: String.printable?(<<c>>)
+  defp ascii_codepoint(:printable), do: StreamData.member_of(@extended_ascii_printable)
 
   defp to_list(c) when is_list(c), do: c
   defp to_list(c) when is_integer(c) or is_atom(c), do: [c]

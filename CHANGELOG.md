@@ -1,5 +1,11 @@
 ## Unreleased
 
+## 0.6.1 [2026-05-02]
+
+### Fixes
+- `from_regex/1`:
+    - Fix codepoints being treated as multiple literal bytes. For example the character `’` (8217) was previously being treated as the codepoints 226, 128, 253.
+
 ## 0.6.0 [2026-04-29]
 
 ### New features

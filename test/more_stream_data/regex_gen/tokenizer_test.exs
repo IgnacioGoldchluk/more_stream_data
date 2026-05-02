@@ -248,6 +248,13 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
   end
 
   describe "special characters" do
+    test "utf8 characters are parsed as literals" do
+      pattern = ~r/’/
+
+      expected = [{:literal, ?’}]
+      assert matches_tokens(pattern, expected)
+    end
+
     test "\\x is parsed as literal hex" do
       pattern = ~r/ab\x123\x{F}\x{Fa}/
 

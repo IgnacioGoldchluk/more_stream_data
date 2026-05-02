@@ -67,103 +67,95 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   an error tuple with the unparsed part
   """
   @spec tokenize(String.t()) :: {:ok, tokenized()} | {:error, String.t(), String.t()}
-  def tokenize(pattern) when is_binary(pattern), do: tokenize(pattern, [])
+  def tokenize(pattern) when is_binary(pattern), do: tokenize(to_codepoints(pattern), [])
 
   # Base case, finished parsing
-  defp tokenize(<<>>, acc) do
-    {:ok, acc |> add_empty() |> Enum.reverse() |> add_concat()}
-  end
+  defp tokenize([], acc), do: {:ok, acc |> add_empty() |> Enum.reverse() |> add_concat()}
 
   # Line and string delimiters
-  defp tokenize(<<?\\, ?A, rest::binary>>, acc), do: tokenize(rest, [:string_start | acc])
-  defp tokenize(<<?^, rest::binary>>, acc), do: tokenize(rest, [:line_start | acc])
-  defp tokenize(<<?$, rest::binary>>, acc), do: tokenize(rest, [:line_end | acc])
-  defp tokenize(<<?\\, ?z, rest::binary>>, acc), do: tokenize(rest, [:string_end | acc])
+  defp tokenize([?\\, ?A | rest], acc), do: tokenize(rest, [:string_start | acc])
+  defp tokenize([?^ | rest], acc), do: tokenize(rest, [:line_start | acc])
+  defp tokenize([?$ | rest], acc), do: tokenize(rest, [:line_end | acc])
+  defp tokenize([?\\, ?z | rest], acc), do: tokenize(rest, [:string_end | acc])
 
   # Parentheses
   # First check for unsupported cases or cases that we'll drop
-  defp tokenize(<<?(, ??, ?=, r::binary>>, _),
-    do: {:error, "positive lookahead unsupported", r}
-
-  defp tokenize(<<?(, ??, ?<, ?=, r::binary>>, _),
-    do: {:error, "positive lookbehind unsupported", r}
+  defp tokenize([?(, ??, ?= | rest], _), do: {:error, "positive lookahead unsupported", rest}
+  defp tokenize([?(, ??, ?<, ?= | rest], _), do: {:error, "positive lookbehind unsupported", rest}
 
   # Negative lookahead, ignore and pray
-  defp tokenize(<<?(, ??, ?!, rest::binary>>, acc) do
+  defp tokenize([?(, ??, ?! | rest], acc) do
     tokenize(discard_zero_width_assertion(rest), [{:non_token, :negative_lookahead} | acc])
   end
 
   # Negative lookbehind, ignore and pray too
-  defp tokenize(<<?(, ??, ?<, ?!, rest::binary>>, acc) do
+  defp tokenize([?(, ??, ?<, ?! | rest], acc) do
     tokenize(discard_zero_width_assertion(rest), [{:non_token, :negative_lookbehind} | acc])
   end
 
-  defp tokenize(<<?(, ??, ?>, rest::binary>>, acc), do: tokenize(atomic_group(rest, ~c"("), acc)
+  defp tokenize([?(, ??, ?> | rest], acc), do: tokenize(atomic_group(rest, ~c"("), acc)
 
   # Non-capture group. Keep the paren but ignore the fact that it's non-capturing
-  defp tokenize(<<?(, ??, ?:, rest::binary>>, acc), do: tokenize(rest, [:lparen | acc])
+  defp tokenize([?(, ??, ?: | rest], acc), do: tokenize(rest, [:lparen | acc])
 
-  defp tokenize(<<?(, ??, ?<, rest::binary>>, acc) do
+  defp tokenize([?(, ??, ?< | rest], acc) do
     # Named capture group in the form of (?<name>...) remove everything between <>
     tokenize(discard_named_group(rest), [:lparen | acc])
   end
 
-  defp tokenize(<<?(, ??, ?#, rest::binary>>, acc) do
-    # Inline comment in the form of (?# comment ). Discard it
-    tokenize(discard_comment(rest), acc)
-  end
+  # Inline comment in the form of (?# comment ). Discard it
+  defp tokenize([?(, ??, ?# | rest], acc), do: tokenize(discard_comment(rest), acc)
 
-  defp tokenize(<<?(, rest::binary>>, acc), do: tokenize(rest, [:lparen | acc])
-  defp tokenize(<<?), rest::binary>>, acc), do: tokenize(rest, [:rparen | acc])
+  defp tokenize([?( | rest], acc), do: tokenize(rest, [:lparen | acc])
+  defp tokenize([?) | rest], acc), do: tokenize(rest, [:rparen | acc])
 
   # Special characters
-  defp tokenize(<<?., rest::binary>>, acc), do: tokenize(rest, [:any_character | acc])
-  defp tokenize(<<?|, rest::binary>>, acc), do: tokenize(rest, [:union | acc])
+  defp tokenize([?. | rest], acc), do: tokenize(rest, [:any_character | acc])
+  defp tokenize([?| | rest], acc), do: tokenize(rest, [:union | acc])
 
   # Reject \1, \2, ... \9 because it's not possible to represent via NFA.
   # It still is possible to generate a regex that repeats its capturing
   # pattern but too complex. Not going to support it for now
-  defp tokenize(<<?\\, d, rest::binary>>, _) when d in ?1..?9 do
+  defp tokenize([?\\, d | rest], _) when d in ?1..?9 do
     {:error, "recursive reference \\#{d} unsupported", rest}
   end
 
   # Same for backreference with name
-  defp tokenize(<<?\\, ?k, r::binary>>, _), do: {:error, "recursive reference unsupported", r}
-  defp tokenize(<<?\\, ?g, r::binary>>, _), do: {:error, "recursive reference unsupported", r}
+  defp tokenize([?\\, ?k | rest], _), do: {:error, "recursive reference unsupported", rest}
+  defp tokenize([?\\, ?g | rest], _), do: {:error, "recursive reference unsupported", rest}
 
   # Quantifiers
-  defp tokenize(<<q, ??, rest::binary>>, acc) when q in @quantifiers do
+  defp tokenize([q, ?? | rest], acc) when q in @quantifiers do
     tokenize(rest, [to_quantifier(q, quantifier_mode_lazy()) | acc])
   end
 
-  defp tokenize(<<q, rest::binary>>, acc) when q in @quantifiers do
-    tokenize(rest, [to_quantifier(q) | acc])
-  end
+  defp tokenize([q | rest], acc) when q in @quantifiers,
+    do: tokenize(rest, [to_quantifier(q) | acc])
 
-  defp tokenize(<<?{, rest::binary>> = pattern, acc) do
+  defp tokenize([?{ | rest] = pattern, acc) do
     case repetitions(pattern) do
       nil -> tokenize(rest, [literal(?{) | acc])
-      {prefix, token} -> tokenize(String.replace_prefix(pattern, prefix, ""), [token | acc])
+      {prefix, token} -> tokenize(pattern -- prefix, [token | acc])
     end
   end
 
-  defp tokenize(<<?\\, seq, rest::binary>>, acc) when seq in @meta_sequences do
+  defp tokenize([?\\, seq | rest], acc) when seq in @meta_sequences do
     tokenize(rest, [to_meta_sequence(seq) | acc])
   end
 
-  defp tokenize(<<?\\, ?x, ?{, rest::binary>>, acc) do
+  defp tokenize([?\\, ?x, ?{ | rest], acc) do
     # Consume until we hit a `}` and convert to binary
     {hex_digits, rest} = consume_hex([], rest)
     {value, ""} = Integer.parse(hex_digits, 16)
     tokenize(rest, [{:literal, value} | acc])
   end
 
-  defp tokenize(<<?\\, ?x, d1, d2, rest::binary>>, acc) do
+  defp tokenize([?\\, ?x, d1, d2 | rest], acc) do
     {hex, ""} = Integer.parse(<<d1, d2>>, 16)
     tokenize(rest, [{:literal, hex} | acc])
   end
 
-  defp tokenize(<<?\\, char, rest::binary>>, acc) do
+  defp tokenize([?\\, char | rest], acc) do
     cond do
       Map.has_key?(@escaped_symbols, char) -> @escaped_symbols[char]
       char in @special_symbols -> char
@@ -175,14 +167,14 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
     end
   end
 
-  defp tokenize(<<?[, ?^, rest::binary>>, acc) do
+  defp tokenize([?[, ?^ | rest], acc) do
     case character_class(rest) do
       {:error, _, _} = e -> e
       {items, remaining} -> tokenize(remaining, [{:character_class, :negative, items} | acc])
     end
   end
 
-  defp tokenize(<<?[, rest::binary>>, acc) do
+  defp tokenize([?[ | rest], acc) do
     case character_class(rest) do
       {:error, _, _} = e -> e
       {items, remaining} -> tokenize(remaining, [{:character_class, :positive, items} | acc])
@@ -190,92 +182,92 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   end
 
   # Nothing else matched, treat as literal
-  defp tokenize(<<char, rest::binary>>, acc), do: tokenize(rest, [literal(char) | acc])
+  defp tokenize([char | rest], acc), do: tokenize(rest, [literal(char) | acc])
 
   # We can have nested groups inside, keep track of how many rparens left we have to see
   # until reaching the last one
   defp discard_zero_width_assertion(str, rparens_left \\ 0)
 
-  defp discard_zero_width_assertion(<<?\\, ?), rest::binary>>, rparens_left) do
+  defp discard_zero_width_assertion([?\\, ?) | rest], rparens_left) do
     discard_zero_width_assertion(rest, rparens_left)
   end
 
-  defp discard_zero_width_assertion(<<?\\, ?(, rest::binary>>, rparens_left) do
+  defp discard_zero_width_assertion([?\\, ?( | rest], rparens_left) do
     discard_zero_width_assertion(rest, rparens_left)
   end
 
-  defp discard_zero_width_assertion(<<?(, rest::binary>>, rparens_left) do
+  defp discard_zero_width_assertion([?( | rest], rparens_left) do
     discard_zero_width_assertion(rest, rparens_left + 1)
   end
 
-  defp discard_zero_width_assertion(<<?), rest::binary>>, 0), do: rest
+  defp discard_zero_width_assertion([?) | rest], 0), do: rest
 
-  defp discard_zero_width_assertion(<<?), rest::binary>>, rparens_left) when rparens_left > 0 do
+  defp discard_zero_width_assertion([?) | rest], rparens_left) when rparens_left > 0 do
     discard_zero_width_assertion(rest, rparens_left - 1)
   end
 
-  defp discard_zero_width_assertion(<<_, rest::binary>>, rparens_left) do
+  defp discard_zero_width_assertion([_ | rest], rparens_left) do
     discard_zero_width_assertion(rest, rparens_left)
   end
 
-  defp discard_named_group(<<?>, rest::binary>>), do: rest
-  defp discard_named_group(<<_, rest::binary>>), do: discard_named_group(rest)
+  defp discard_named_group([?> | rest]), do: rest
+  defp discard_named_group([_ | rest]), do: discard_named_group(rest)
 
-  defp discard_comment(<<?\\, ?), rest::binary>>), do: discard_comment(rest)
-  defp discard_comment(<<?), rest::binary>>), do: rest
-  defp discard_comment(<<_, rest::binary>>), do: discard_comment(rest)
+  defp discard_comment([?\\, ?) | rest]), do: discard_comment(rest)
+  defp discard_comment([?) | rest]), do: rest
+  defp discard_comment([_ | rest]), do: discard_comment(rest)
 
-  defp atomic_group(<<?|, rest::binary>>, acc) do
+  defp atomic_group([?| | rest], acc) do
     # Discard until we find the closing ')'. Then put the accumulated values
     # back and tokenize everything
-    to_string(Enum.reverse([?) | acc])) <> discard_rest_of_group(rest)
+    Enum.reverse([?) | acc]) ++ discard_rest_of_group(rest)
   end
 
   # Special case when there was no "|"
-  defp atomic_group(")" <> rest, acc), do: to_string(Enum.reverse([?) | acc])) <> rest
+  defp atomic_group([?) | rest], acc), do: Enum.reverse([?) | acc]) ++ rest
 
-  defp atomic_group(<<??, c, rest::binary>>, acc), do: atomic_group(rest, [c, ?? | acc])
-  defp atomic_group(<<c, rest::binary>>, acc), do: atomic_group(rest, [c | acc])
+  defp atomic_group([??, c | rest], acc), do: atomic_group(rest, [c, ?? | acc])
+  defp atomic_group([c | rest], acc), do: atomic_group(rest, [c | acc])
 
-  defp discard_rest_of_group(<<?), rest::binary>>), do: rest
-  defp discard_rest_of_group(<<?\\, _escaped, rest::binary>>), do: discard_rest_of_group(rest)
-  defp discard_rest_of_group(<<_char, rest::binary>>), do: discard_rest_of_group(rest)
+  defp discard_rest_of_group([?) | rest]), do: rest
+  defp discard_rest_of_group([?\\, _escaped | rest]), do: discard_rest_of_group(rest)
+  defp discard_rest_of_group([_char | rest]), do: discard_rest_of_group(rest)
 
   # When inside character class "[]" everything is considered as literal except
   # for ranges like [a-z] and character classes like \w
   @spec character_class(binary()) :: {list(token()), binary()} | {:error, String.t(), binary()}
   defp character_class(pattern), do: character_class(pattern, [])
-  defp character_class(<<?], rest::binary>>, items), do: {Enum.reverse(items), rest}
+  defp character_class([?] | rest], items), do: {Enum.reverse(items), rest}
 
-  defp character_class(<<?\\, ?-, rest::binary>>, items) do
+  defp character_class([?\\, ?- | rest], items) do
     character_class(rest, [{:literal, ?-} | items])
   end
 
-  defp character_class(<<char1, ?-, ?], rest::binary>>, items) do
+  defp character_class([char1, ?-, ?] | rest], items) do
     {Enum.reverse([{:literal, ?-}, {:literal, char1} | items]), rest}
   end
 
-  defp character_class(<<low, ?-, high, rest::binary>>, items) when low <= high do
+  defp character_class([low, ?-, high | rest], items) when low <= high do
     character_class(rest, [{:range, {low, high}} | items])
   end
 
-  defp character_class(<<low, ?-, high, _>> = pattern, _items) when low > high do
+  defp character_class([low, ?-, high | _] = pattern, _items) when low > high do
     {:error, "Character range is out of order", pattern}
   end
 
-  defp character_class(<<?\\, s, rest::binary>>, items) when s in @meta_sequences do
+  defp character_class([?\\, s | rest], items) when s in @meta_sequences do
     character_class(rest, [to_meta_sequence(s) | items])
   end
 
-  defp character_class(<<?\\, s, rest::binary>>, items) when s in @special_symbols do
+  defp character_class([?\\, s | rest], items) when s in @special_symbols do
     character_class(rest, [literal(s) | items])
   end
 
-  defp character_class(<<?\\, s, rest::binary>>, items) do
+  defp character_class([?\\, s | rest], items) do
     character_class(rest, [literal(Map.get(@escaped_symbols, s, s)) | items])
   end
 
-  defp character_class(<<char, rest::binary>>, items) do
+  defp character_class([char | rest], items) do
     character_class(rest, [literal(char) | items])
   end
 
@@ -298,38 +290,41 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   defp to_meta_sequence(?V), do: {:meta_sequence, :non_vertical_space}
 
   @spec repetitions(String.t()) :: nil | {String.t(), quantifier()}
-  def repetitions(quantifier) when is_binary(quantifier) do
+  def repetitions(quantifier) when is_list(quantifier) do
+    quantifier_str = to_string(quantifier)
     regex = ~r/^{(\d*),(\d*)}(\?)?|{(\d*)}(\?)?/
 
-    case Regex.run(regex, quantifier) do
+    case Regex.run(regex, quantifier_str) do
       nil ->
         nil
 
       [s, "", "", "", exact] ->
         exact = String.to_integer(exact)
-        {s, quantifier(exact, exact, quantifier_mode_greedy())}
+        {to_codepoints(s), quantifier(exact, exact, quantifier_mode_greedy())}
 
       [s, "", "", "", exact, "?"] ->
         exact = String.to_integer(exact)
-        {s, quantifier(exact, exact, quantifier_mode_lazy())}
+        {to_codepoints(s), quantifier(exact, exact, quantifier_mode_lazy())}
 
       [s, "", high] ->
-        {s, quantifier(0, String.to_integer(high), quantifier_mode_greedy())}
+        {to_codepoints(s), quantifier(0, String.to_integer(high), quantifier_mode_greedy())}
 
       [s, "", high, "?"] ->
-        {s, quantifier(0, String.to_integer(high), quantifier_mode_lazy())}
+        {to_codepoints(s), quantifier(0, String.to_integer(high), quantifier_mode_lazy())}
 
       [s, low, ""] ->
-        {s, quantifier(String.to_integer(low), nil, quantifier_mode_greedy())}
+        {to_codepoints(s), quantifier(String.to_integer(low), nil, quantifier_mode_greedy())}
 
       [s, low, "", "?"] ->
-        {s, quantifier(String.to_integer(low), nil, quantifier_mode_lazy())}
+        {to_codepoints(s), quantifier(String.to_integer(low), nil, quantifier_mode_lazy())}
 
       [s, low, high] ->
-        {s, quantifier(String.to_integer(low), String.to_integer(high), quantifier_mode_greedy())}
+        {to_codepoints(s),
+         quantifier(String.to_integer(low), String.to_integer(high), quantifier_mode_greedy())}
 
       [s, low, high, "?"] ->
-        {s, quantifier(String.to_integer(low), String.to_integer(high), quantifier_mode_lazy())}
+        {to_codepoints(s),
+         quantifier(String.to_integer(low), String.to_integer(high), quantifier_mode_lazy())}
     end
   end
 
@@ -381,6 +376,10 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   defp can_start?({:non_token, _}), do: true
   defp can_start?(_), do: false
 
-  defp consume_hex(acc, <<?}, rest::binary>>), do: {Enum.reverse(acc) |> to_string(), rest}
-  defp consume_hex(acc, <<d, rest::binary>>), do: consume_hex([d | acc], rest)
+  defp consume_hex(acc, [?} | rest]), do: {Enum.reverse(acc) |> to_string(), rest}
+  defp consume_hex(acc, [d | rest]), do: consume_hex([d | acc], rest)
+
+  defp to_codepoints(str) when is_binary(str) do
+    for <<c::utf8 <- str>>, do: c
+  end
 end
