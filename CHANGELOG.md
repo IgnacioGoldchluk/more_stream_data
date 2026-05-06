@@ -1,5 +1,10 @@
 ## Unreleased
 
+## 0.7.0 [2026-05-06]
+
+### Breaking changes
+- Remove `from_proto/1`. The code adds an unnecessary dependency (`protobuf`) for most cases, and is trivial to implement.
+
 ## 0.6.1 [2026-05-02]
 
 ### Fixes

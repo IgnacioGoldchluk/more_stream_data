@@ -2,7 +2,7 @@ defmodule MoreStreamData.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/IgnacioGoldchluk/more_stream_data"
-  @version "0.6.1"
+  @version "0.7.0"
 
   def project do
     [
@@ -35,7 +35,6 @@ defmodule MoreStreamData.MixProject do
     [
       {:stream_data, "~> 1.0"},
       {:decimal, "~> 2.3"},
-      {:protobuf, "~> 0.14"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false, warn_if_outdated: true}
     ]

@@ -707,14 +707,6 @@ defmodule MoreStreamData do
   end
 
   @doc """
-  Generates data from a protobuf module
-  """
-  @spec from_proto(module()) :: StreamData.t(struct())
-  def from_proto(module) when is_atom(module) do
-    MoreStreamData.Protobuf.from_proto(module)
-  end
-
-  @doc """
   Returns a list of elements from the input enum in random order.
 
   This function can return duplicates if the input enum contains duplicate elements.
