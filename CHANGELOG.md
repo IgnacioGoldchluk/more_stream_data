@@ -1,5 +1,10 @@
 ## Unreleased
 
+## 0.7.1 [2026-05-07]
+
+### Internal
+- Update `:decimal` version. See [CVE-2026-32686](https://cna.erlef.org/cves/CVE-2026-32686.html)
+
 ## 0.7.0 [2026-05-06]
 
 ### Breaking changes
