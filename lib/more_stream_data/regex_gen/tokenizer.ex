@@ -1,7 +1,10 @@
 defmodule MoreStreamData.RegexGen.Tokenizer do
   @moduledoc false
 
+  require Logger
+
   import MoreStreamData.RegexGen.Tokenizer.Tokens
+  alias MoreStreamData.Exceptions.UnsupportedToken
 
   @quantifiers ~c"*+?"
   @meta_sequences ~c"wWdDsShHvV"
@@ -63,14 +66,13 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   @type tokenized :: [token()]
 
   @doc """
-  Tokenizes a regular expression. Returns a tuple with the tokenized result or
-  an error tuple with the unparsed part
+  Tokenizes a regular expression.
   """
-  @spec tokenize(String.t()) :: {:ok, tokenized()} | {:error, String.t(), String.t()}
+  @spec tokenize(String.t()) :: tokenized()
   def tokenize(pattern) when is_binary(pattern), do: tokenize(to_codepoints(pattern), [])
 
   # Base case, finished parsing
-  defp tokenize([], acc), do: {:ok, acc |> add_empty() |> Enum.reverse() |> add_concat()}
+  defp tokenize([], acc), do: acc |> add_empty() |> Enum.reverse() |> add_concat()
 
   # Line and string delimiters
   defp tokenize([?\\, ?A | rest], acc), do: tokenize(rest, [:string_start | acc])
@@ -80,8 +82,13 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
 
   # Parentheses
   # First check for unsupported cases or cases that we'll drop
-  defp tokenize([?(, ??, ?= | rest], _), do: {:error, "positive lookahead unsupported", rest}
-  defp tokenize([?(, ??, ?<, ?= | rest], _), do: {:error, "positive lookbehind unsupported", rest}
+  defp tokenize([?(, ??, ?= | _rest], _) do
+    raise UnsupportedToken, token: <<?(, ??, ?=>>
+  end
+
+  defp tokenize([?(, ??, ?<, ?= | _rest], _) do
+    raise UnsupportedToken, token: <<?(, ??, ?<, ?=>>
+  end
 
   # Negative lookahead, ignore and pray
   defp tokenize([?(, ??, ?! | rest], acc) do
@@ -93,7 +100,10 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
     tokenize(discard_zero_width_assertion(rest), [{:non_token, :negative_lookbehind} | acc])
   end
 
-  defp tokenize([?(, ??, ?> | rest], acc), do: tokenize(atomic_group(rest, ~c"("), acc)
+  defp tokenize([?(, ??, ?> | rest], acc) do
+    Logger.warning("atomic group found, values will be generated from the first pattern option")
+    tokenize(atomic_group(rest, ~c"("), acc)
+  end
 
   # Non-capture group. Keep the paren but ignore the fact that it's non-capturing
   defp tokenize([?(, ??, ?: | rest], acc), do: tokenize(rest, [:lparen | acc])
@@ -116,13 +126,14 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
   # Reject \1, \2, ... \9 because it's not possible to represent via NFA.
   # It still is possible to generate a regex that repeats its capturing
   # pattern but too complex. Not going to support it for now
-  defp tokenize([?\\, d | rest], _) when d in ?1..?9 do
-    {:error, "recursive reference \\#{d} unsupported", rest}
+  defp tokenize([?\\, d | _rest], _) when d in ?1..?9 do
+    raise UnsupportedToken, token: <<?\\, d>>
   end
 
   # Same for backreference with name
-  defp tokenize([?\\, ?k | rest], _), do: {:error, "recursive reference unsupported", rest}
-  defp tokenize([?\\, ?g | rest], _), do: {:error, "recursive reference unsupported", rest}
+  defp tokenize([?\\, group | _rest], _) when group in [?k, ?g] do
+    raise UnsupportedToken, token: <<?\\, group>>
+  end
 
   # Quantifiers
   defp tokenize([q, ?? | rest], acc) when q in @quantifiers do
@@ -155,6 +166,10 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
     tokenize(rest, [{:literal, hex} | acc])
   end
 
+  defp tokenize([?\\, ?b | _rest], _acc) do
+    raise UnsupportedToken, token: <<?\\, ?b>>
+  end
+
   defp tokenize([?\\, char | rest], acc) do
     cond do
       Map.has_key?(@escaped_symbols, char) -> @escaped_symbols[char]
@@ -162,23 +177,19 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
       true -> nil
     end
     |> case do
-      nil -> {:error, "unsupported escaped symbol: #{char}", rest}
+      nil -> raise UnsupportedToken, token: <<?\\, char>>
       value -> tokenize(rest, [{:literal, value} | acc])
     end
   end
 
   defp tokenize([?[, ?^ | rest], acc) do
-    case character_class(rest) do
-      {:error, _, _} = e -> e
-      {items, remaining} -> tokenize(remaining, [{:character_class, :negative, items} | acc])
-    end
+    {items, remaining} = character_class(rest)
+    tokenize(remaining, [{:character_class, :negative, items} | acc])
   end
 
   defp tokenize([?[ | rest], acc) do
-    case character_class(rest) do
-      {:error, _, _} = e -> e
-      {items, remaining} -> tokenize(remaining, [{:character_class, :positive, items} | acc])
-    end
+    {items, remaining} = character_class(rest)
+    tokenize(remaining, [{:character_class, :positive, items} | acc])
   end
 
   # Nothing else matched, treat as literal
@@ -235,7 +246,7 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
 
   # When inside character class "[]" everything is considered as literal except
   # for ranges like [a-z] and character classes like \w
-  @spec character_class(binary()) :: {list(token()), binary()} | {:error, String.t(), binary()}
+  @spec character_class(binary()) :: {list(token()), binary()}
   defp character_class(pattern), do: character_class(pattern, [])
   defp character_class([?] | rest], items), do: {Enum.reverse(items), rest}
 
@@ -251,8 +262,8 @@ defmodule MoreStreamData.RegexGen.Tokenizer do
     character_class(rest, [{:range, {low, high}} | items])
   end
 
-  defp character_class([low, ?-, high | _] = pattern, _items) when low > high do
-    {:error, "Character range is out of order", pattern}
+  defp character_class([low, ?-, high | _] = _pattern, _items) when low > high do
+    raise UnsupportedToken, token: <<low, ?-, high>>
   end
 
   defp character_class([?\\, s | rest], items) when s in @meta_sequences do

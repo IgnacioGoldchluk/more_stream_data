@@ -1,5 +1,11 @@
 ## Unreleased
 
+## 0.8.0 [2026-05-08]
+
+### New features
+- `from_regex/1`:
+    - Add `UnsupportedToken` exception and imporove error handling and logging
+
 ## 0.7.1 [2026-05-07]
 
 ### Internal

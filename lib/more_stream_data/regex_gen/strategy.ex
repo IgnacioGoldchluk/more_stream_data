@@ -26,7 +26,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
     source = Regex.source(regex)
     pattern = if(:extended in options[:regex_opts], do: remove_extended(source), else: source)
 
-    {:ok, tokens} = Tokenizer.tokenize(pattern)
+    tokens = Tokenizer.tokenize(pattern)
     {non_tokens, tokens} = split_tokens(tokens)
 
     tokens

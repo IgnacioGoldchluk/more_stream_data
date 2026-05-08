@@ -1,6 +1,7 @@
 defmodule MoreStreamData.RegexGen.TokenizerTest do
   use ExUnit.Case
 
+  alias MoreStreamData.Exceptions.UnsupportedToken
   alias MoreStreamData.RegexGen.Tokenizer
 
   test "parses empty string" do
@@ -348,9 +349,10 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
       assert matches_tokens(pattern2, expected)
     end
 
-    test "negative character class with reversed range returns error" do
-      pattern = "[^9-0]"
-      assert {:error, "Character range is out of order", _} = Tokenizer.tokenize(pattern)
+    test "negative character class with reversed range raises" do
+      assert_raise UnsupportedToken,
+                   "Unsupported token '9-0' (character range in wrong order)",
+                   fn -> Tokenizer.tokenize("[^9-0]") end
     end
 
     test "escaped '-' in character class is parsed as literal" do
@@ -391,15 +393,18 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
       assert matches_tokens(pattern, expected)
     end
 
-    test "returns error when range is out of order" do
-      assert {:error, "Character range is out of order", _} = Tokenizer.tokenize("[z-a]")
+    test "raises when range is out of order" do
+      assert_raise UnsupportedToken,
+                   "Unsupported token 'z-a' (character range in wrong order)",
+                   fn -> Tokenizer.tokenize("[z-a]") end
     end
   end
 
   describe "non-printable characters" do
     test "useless escaping a character returns an error" do
-      pattern = "\\m"
-      assert {:error, "unsupported escaped symbol: 109", _} = Tokenizer.tokenize(pattern)
+      assert_raise UnsupportedToken, "Unsupported token '\\m' (unknown escaped symbol)", fn ->
+        Tokenizer.tokenize("\\m")
+      end
     end
 
     test "are tokenized as literals with their ASCII value" do
@@ -500,19 +505,33 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
   end
 
   describe "unsupported options" do
-    test "positive lookahead returns error" do
+    test "positive lookahead raises" do
       pattern = ~r/a(?=b)c/ |> Regex.source()
-      assert {:error, "positive lookahead unsupported", _} = Tokenizer.tokenize(pattern)
+
+      assert_raise UnsupportedToken, "Unsupported token '(?=' (positive lookahead)", fn ->
+        Tokenizer.tokenize(pattern)
+      end
     end
 
-    test "positive lookbehind returns error" do
+    test "positive lookbehind raises" do
       pattern = ~r/a(?<=b)c/ |> Regex.source()
-      assert {:error, "positive lookbehind unsupported", _} = Tokenizer.tokenize(pattern)
+
+      assert_raise UnsupportedToken, "Unsupported token '(?<=' (positive lookbehind)", fn ->
+        Tokenizer.tokenize(pattern)
+      end
     end
 
-    test "recursive references return error" do
+    test "recursive references raises" do
       for pat <- [~r/(\d+)\1/, ~r/(\d+)\g1/, ~r/(?<a>\d+)\k<a>/, ~r/(?<a>\d+)\k{a}/] do
-        assert {:error, "recursive reference" <> _, _} = Tokenizer.tokenize(Regex.source(pat))
+        assert_raise UnsupportedToken,
+                     ~r/Unsupported token '\\[1|g|k]' \(recursive reference\)/,
+                     fn -> Tokenizer.tokenize(Regex.source(pat)) end
+      end
+    end
+
+    test "word boundary '\\b' raises" do
+      assert_raise UnsupportedToken, "Unsupported token '\\b' (word boundary)", fn ->
+        Tokenizer.tokenize(~r/[a-z]\b[a-z]+/ |> Regex.source())
       end
     end
   end
@@ -559,7 +578,6 @@ defmodule MoreStreamData.RegexGen.TokenizerTest do
   end
 
   defp matches_tokens(pattern, expected) when is_binary(pattern) do
-    assert {:ok, tokenized} = Tokenizer.tokenize(pattern)
-    assert expected == tokenized
+    assert expected == Tokenizer.tokenize(pattern)
   end
 end
