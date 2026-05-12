@@ -1,6 +1,6 @@
 ## Unreleased
 
-### New features
+### 0.8.1 [2026-05-12]
 - `from_regex/2`:
     - Add `:max_length` hint option
 
