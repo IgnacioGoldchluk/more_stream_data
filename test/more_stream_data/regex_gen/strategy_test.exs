@@ -4,6 +4,26 @@ defmodule MoreStreamData.RegexGen.StrategyTest do
 
   alias MoreStreamData.RegexGen.Strategy
 
+  describe "max_length option" do
+    test "raises if max_length is not a positive number" do
+      pattern = ~r/\d+/
+
+      for invalid <- [0, 1.5, -5, "-2"] do
+        assert_raise ArgumentError, ~r/max_length must be a positive integer, .*/, fn ->
+          Strategy.from_regex(pattern, max_length: invalid)
+        end
+      end
+    end
+
+    test "raises if max_length is impossible" do
+      pattern = ~r/\w{5,10}/
+
+      assert_raise ArgumentError, ~r/max_length=3 .*/, fn ->
+        Strategy.from_regex(pattern, max_length: 3)
+      end
+    end
+  end
+
   describe "special characters" do
     test "escaped '/' is treated as literal character" do
       pattern = ~r/^http:\/\/www\.[a-z]+\.com$/

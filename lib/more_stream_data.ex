@@ -542,6 +542,13 @@ defmodule MoreStreamData do
   - `:character_set` - (`:printable | :all`) if set to `:printable` only
   printable characters are generated, otherwise every character in the ASCII extended
   range 0-255 can be generated. Defaults to `:all`
+  - `:max_length` - (`t:pos_integer/0`) the maximum string length.
+
+  Keep in mind that passing `:max_length` might cause the function to raise. The option
+  is simply a "hint" to improve the generation of new values. For example,
+  `MoreStreamData.from_regex(~r/^\d{10,15}$/, max_length: 8)` raises because the regex cannot
+  generate strings of the specified `:min_length`. Rely on `:max_length` as last resort only when
+  the length of the total string cannot be encoded as part of the regex pattern.
 
   ## Shrinking
   Shrinks towards lower ASCII characters and shorter expressions. For example

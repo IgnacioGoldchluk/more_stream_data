@@ -391,6 +391,14 @@ defmodule MoreStreamDataTest do
   end
 
   describe "from_regex/1" do
+    property "max_length generates string of at most the specified length" do
+      length = 3
+
+      check all str <- from_regex(~r/\w*/, max_length: length) do
+        assert String.length(str) <= length
+      end
+    end
+
     property "/f modifier forces the regex to match in the first line" do
       pattern = ~r/very_unlikely_that_thisgets_duplicated/f
 

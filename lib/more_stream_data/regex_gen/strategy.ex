@@ -22,6 +22,12 @@ defmodule MoreStreamData.RegexGen.Strategy do
   """
   @spec from_regex(String.t() | Regex.t(), Keyword.t()) :: StreamData.t(String.t())
   def from_regex(regex, opts) when is_struct(regex, Regex) do
+    case opts[:max_length] do
+      nil -> :ok
+      n when is_integer(n) and n > 0 -> :ok
+      invalid -> raise ArgumentError, "max_length must be a positive integer, got: #{invalid}"
+    end
+
     options = parse_opts(regex, opts)
     source = Regex.source(regex)
     pattern = if(:extended in options[:regex_opts], do: remove_extended(source), else: source)
@@ -36,6 +42,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
     |> apply_caseless(options)
     |> filter_if_zero_width_assertions(non_tokens, regex)
     |> apply_anchors(options)
+    |> filter_length(opts[:max_length])
   end
 
   def from_regex(regex, opts) when is_binary(regex), do: from_regex(Regex.compile!(regex), opts)
@@ -105,7 +112,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
   end
 
   defp from_ast({:quantifier, quantifier, _greedy_lazy, expression}, opts) do
-    StreamData.list_of(from_ast(expression, opts), list_opts(quantifier))
+    StreamData.list_of(from_ast(expression, opts), list_opts(quantifier, opts[:max_length]))
   end
 
   # Workaround for line/string delimiters
@@ -114,12 +121,24 @@ defmodule MoreStreamData.RegexGen.Strategy do
     StreamData.constant(delimiter)
   end
 
-  defp list_opts(:star), do: []
-  defp list_opts(:plus), do: [min_length: 1]
-  defp list_opts(:question), do: [max_length: 1]
-  defp list_opts({m, m}), do: [length: m]
+  defp list_opts(:star, nil), do: []
+  defp list_opts(:plus, nil), do: [min_length: 1]
+  defp list_opts(:question, _), do: [max_length: 1]
+  defp list_opts({m, m}, _), do: [length: m]
 
-  defp list_opts({m, n}) do
+  defp list_opts({m, n}, nil) do
+    Keyword.reject([min_length: m, max_length: n], fn {_k, v} -> is_nil(v) end)
+  end
+
+  defp list_opts(:star, max_length), do: [max_length: max_length]
+  defp list_opts(:plus, max_length), do: [min_length: 1, max_length: max_length]
+
+  defp list_opts({m, n}, max_length) do
+    if max_length < m do
+      raise ArgumentError, "max_length=#{max_length} but regex requires at least #{m} charaters"
+    end
+
+    n = if(is_nil(n), do: max_length, else: min(max_length, n))
     Keyword.reject([min_length: m, max_length: n], fn {_k, v} -> is_nil(v) end)
   end
 
@@ -160,10 +179,50 @@ defmodule MoreStreamData.RegexGen.Strategy do
   end
 
   defp apply_anchors(regex_metadata_gen, opts) do
-    StreamData.bind(regex_metadata_gen, fn {regex_gen, metadata} ->
-      StreamData.tuple({to_prepend(metadata, opts), to_append(metadata, opts)})
-      |> StreamData.map(fn {prefix, suffix} -> Enum.join([prefix, regex_gen, suffix]) end)
-    end)
+    if is_nil(opts[:max_length]) do
+      StreamData.bind(regex_metadata_gen, fn {regex_gen, metadata} ->
+        StreamData.tuple({to_prepend(metadata, opts), to_append(metadata, opts)})
+        |> StreamData.map(fn {prefix, suffix} -> Enum.join([prefix, regex_gen, suffix]) end)
+      end)
+    else
+      StreamData.bind(regex_metadata_gen, fn {string, metadata} ->
+        left_to_gen = max(0, opts[:max_length] - String.length(string))
+
+        if left_to_gen == 0 do
+          StreamData.constant(string)
+        else
+          StreamData.integer(0..left_to_gen)
+          |> StreamData.bind(fn chars_to_prepend ->
+            chars_to_append = max(0, left_to_gen - chars_to_prepend)
+
+            to_prepend =
+              if(chars_to_prepend == 0,
+                do: StreamData.constant(""),
+                else: to_prepend(metadata, opts)
+              )
+
+            to_append =
+              if(chars_to_append == 0,
+                do: StreamData.constant(""),
+                else: to_append(metadata, opts)
+              )
+
+            StreamData.tuple({to_prepend, to_append})
+            |> StreamData.map(fn {prefix, suffix} ->
+              Enum.join([
+                # Keep at most chars_to_prepend from the end
+                prefix |> String.slice(-chars_to_prepend, chars_to_prepend),
+                string,
+                # Keep at most chars_to_append from the beginning
+                # This is because we have to respect line breaks, so the newlines
+                # next to the string are the last thing to be removed
+                suffix |> String.slice(0, chars_to_append)
+              ])
+            end)
+          end)
+        end
+      end)
+    end
   end
 
   # Prepend cases
@@ -290,5 +349,11 @@ defmodule MoreStreamData.RegexGen.Strategy do
     else
       gen
     end
+  end
+
+  defp filter_length(gen, nil), do: gen
+
+  defp filter_length(gen, max_length) do
+    StreamData.filter(gen, fn string -> String.length(string) <= max_length end)
   end
 end

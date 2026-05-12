@@ -1,9 +1,13 @@
 ## Unreleased
 
+### New features
+- `from_regex/2`:
+    - Add `:max_length` hint option
+
 ## 0.8.0 [2026-05-08]
 
 ### New features
-- `from_regex/1`:
+- `from_regex/2`:
     - Add `UnsupportedToken` exception and imporove error handling and logging
 
 ## 0.7.1 [2026-05-07]
@@ -19,7 +23,7 @@
 ## 0.6.1 [2026-05-02]
 
 ### Fixes
-- `from_regex/1`:
+- `from_regex/2`:
     - Fix codepoints being treated as multiple literal bytes. For example the character `’` (8217) was previously being treated as the codepoints 226, 128, 253.
 
 ## 0.6.0 [2026-04-29]
@@ -31,18 +35,18 @@
 ## 0.5.1 [2026-04-25]
 
 ### Fixes
-- `from_regex/1`:
+- `from_regex/2`:
     - Fix group inside negative lookahead and negative lookbehind creating invalid AST
 
 
 ## 0.5.0 [2026-04-25]
 
 ### New features
-- `from_regex/1`:
+- `from_regex/2`:
     - Add support for negative lookahead and negative lookbehind assertions
 
 ### Fixes
-- `from_regex/1`:
+- `from_regex/2`:
     - Treat escaped `/` character as literal instead of returning error
 
 ## 0.4.0 [2026-04-21]
@@ -53,30 +57,30 @@
 ## 0.3.4 [2026-04-17]
 
 ### Fixes
-- `from_regex/1`:
+- `from_regex/2`:
     - Union of empty string and pattern. For example `~r/^(|foo)$/` which matches the empty string `""` or the literal `"foo"` would previously raise
     - Edge case of `~r//` failing
 
 ## 0.3.3 [2026-04-16]
 
 ### Fixes
-- `from_regex/1`:
+- `from_regex/2`:
     - Fix regression for strings of length = 1
 
 ## 0.3.2 [2026-04-16]
 
 ### Fixes
-- `from_regex/1`:
+- `from_regex/2`:
     - Fix line and string anchors (`\A, ^, $, \z`) not working in unions. For example the regex `~r/^a$|^b$/` would previously raise
 
 ### New features
-- `from_regex/1`:
+- `from_regex/2`:
     - Limited support for atomic groups `(?>...)`. Generates values based on the first group option
 
 ## 0.3.1 [2026-04-06]
 
 ### New features
-- `from_regex/1`:
+- `from_regex/2`:
     - Add `:character_set` option
 
 ## 0.3.0 [2026-04-04]
