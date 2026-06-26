@@ -451,7 +451,7 @@ defmodule MoreStreamDataTest do
       end
     end
 
-    property "caseless option geneates case insensitive regex" do
+    property "caseless option generates case insensitive regex" do
       check all str <- from_regex(~r/^qwertyasd$/i) do
         assert String.downcase(str) == "qwertyasd"
       end
@@ -468,7 +468,7 @@ defmodule MoreStreamDataTest do
     common_regexes = [
       # Decimal numbers
       ~r/^-?\d*(\.\d+)?$/,
-      # Decimal + integer + fration
+      # Decimal + integer + fraction
       ~r/^[-]?[0-9]+[,.]?[0-9]*([\/][0-9]+[,.]?[0-9]*)*$/,
       # Simplified and wrong email
       ~r/^[A-Za-z0-9]+([._%+-]?[A-Za-z0-9]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/,

@@ -8,7 +8,7 @@
 
 ### New features
 - `from_regex/2`:
-    - Add `UnsupportedToken` exception and imporove error handling and logging
+    - Add `UnsupportedToken` exception and improve error handling and logging
 
 ## 0.7.1 [2026-05-07]
 

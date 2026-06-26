@@ -21,7 +21,7 @@ defmodule MoreStreamData.RegexGen.AST do
 
   @doc """
   Converts a tokenized regex to an AST that can later be used as a seed for
-  a `StreamData` stategy
+  a `StreamData` strategy
   """
   @spec parse([Tokenizer.token()]) :: ast()
   def parse(tokens) do

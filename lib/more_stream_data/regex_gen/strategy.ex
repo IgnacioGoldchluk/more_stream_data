@@ -135,7 +135,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
 
   defp list_opts({m, n}, max_length) do
     if max_length < m do
-      raise ArgumentError, "max_length=#{max_length} but regex requires at least #{m} charaters"
+      raise ArgumentError, "max_length=#{max_length} but regex requires at least #{m} characters"
     end
 
     n = if(is_nil(n), do: max_length, else: min(max_length, n))
@@ -291,7 +291,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
     strip_ext(rest, :comment, acc)
   end
 
-  # Whitespace outisde of class, delete too
+  # Whitespace outside of class, delete too
   defp strip_ext(<<char, rest::binary>>, nil, acc) when char in @whitespace do
     strip_ext(rest, nil, acc)
   end
@@ -342,7 +342,7 @@ defmodule MoreStreamData.RegexGen.Strategy do
     # contains a lookaround, we generate the regex normally, and then do a
     # match filter, because it is expected that the supported zero width assertions
     # are very unlikely to throw non-matching regexes
-    supported_zwa = [:negative_lookahead, :negaive_lookbehind]
+    supported_zwa = [:negative_lookahead, :negative_lookbehind]
 
     if Enum.any?(supported_zwa, &(&1 in non_tokens)) do
       StreamData.filter(gen, fn {str, _metadata} -> Regex.match?(regex, str) end)

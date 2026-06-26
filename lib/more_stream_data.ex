@@ -16,7 +16,7 @@ defmodule MoreStreamData do
 
   ## Options:
 
-    - `:version` - (`4 | 6`) generates IP adresses only of this version. Defaults to
+    - `:version` - (`4 | 6`) generates IP addresses only of this version. Defaults to
     generating both IPv4 and IPv6.
     - `:network` - (`t:String.t/0`) A string representing an IPv4 network or an IPv6 network, such
     as `"123.111.0.0/16"` or `"1234:3210::/16`. If specified, only IPs in the given
